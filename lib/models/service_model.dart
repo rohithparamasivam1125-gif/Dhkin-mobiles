@@ -27,6 +27,9 @@ class ServiceModel {
   final double onlineAmount;
   final String partsPaymentMode; // 'Cash' or 'Online'
   final String technicianPaymentMode; // 'Cash' or 'Online'
+  // Complementary gifted products (given free at delivery, deducted from stock at cost price)
+  final List<Map<String, dynamic>> complementaryItems;
+  final double complementaryCost; // total cost price of all gifted items (for profit deduction)
 
   ServiceModel({
     required this.id,
@@ -55,6 +58,8 @@ class ServiceModel {
     this.onlineAmount = 0.0,
     this.partsPaymentMode = 'Cash',
     this.technicianPaymentMode = 'Cash',
+    this.complementaryItems = const [],
+    this.complementaryCost = 0.0,
   });
 
   ServiceModel copyWith({
@@ -84,6 +89,8 @@ class ServiceModel {
     double? onlineAmount,
     String? partsPaymentMode,
     String? technicianPaymentMode,
+    List<Map<String, dynamic>>? complementaryItems,
+    double? complementaryCost,
   }) {
     return ServiceModel(
       id: id ?? this.id,
@@ -112,6 +119,8 @@ class ServiceModel {
       onlineAmount: onlineAmount ?? this.onlineAmount,
       partsPaymentMode: partsPaymentMode ?? this.partsPaymentMode,
       technicianPaymentMode: technicianPaymentMode ?? this.technicianPaymentMode,
+      complementaryItems: complementaryItems ?? this.complementaryItems,
+      complementaryCost: complementaryCost ?? this.complementaryCost,
     );
   }
 
@@ -143,12 +152,27 @@ class ServiceModel {
       'onlineAmount': onlineAmount,
       'partsPaymentMode': partsPaymentMode,
       'technicianPaymentMode': technicianPaymentMode,
+      'complementaryItems': complementaryItems,
+      'complementaryCost': complementaryCost,
     };
   }
 
   factory ServiceModel.fromMap(Map<String, dynamic> map) {
     final double totalAmt = (map['totalAmount'] ?? 0.0).toDouble();
     final double advanceAmt = (map['advanceAmount'] ?? 0.0).toDouble();
+
+    // Parse complementaryItems safely from Firestore
+    List<Map<String, dynamic>> parsedComplements = [];
+    if (map['complementaryItems'] != null) {
+      try {
+        parsedComplements = (map['complementaryItems'] as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      } catch (_) {
+        parsedComplements = [];
+      }
+    }
+
     return ServiceModel(
       id: map['id'] ?? '',
       customerName: map['customerName'] ?? '',
@@ -180,6 +204,8 @@ class ServiceModel {
       onlineAmount: (map['onlineAmount'] ?? 0.0).toDouble(),
       partsPaymentMode: map['partsPaymentMode'] ?? 'Cash',
       technicianPaymentMode: map['technicianPaymentMode'] ?? 'Cash',
+      complementaryItems: parsedComplements,
+      complementaryCost: (map['complementaryCost'] ?? 0.0).toDouble(),
     );
   }
 }

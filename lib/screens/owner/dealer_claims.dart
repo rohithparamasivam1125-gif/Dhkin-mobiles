@@ -420,6 +420,7 @@ class _DealerClaimsScreenState extends State<DealerClaimsScreen> with SingleTick
 
   void _showResolveDialog(BuildContext context, ReplacementModel claim) {
     String selectedResolution = 'replaced'; // 'replaced', 'refunded', 'rejected'
+    String refundPaymentMode = 'Online'; // only used when selectedResolution == 'refunded'
     bool isSubmitting = false;
 
     showDialog(
@@ -455,6 +456,96 @@ class _DealerClaimsScreenState extends State<DealerClaimsScreen> with SingleTick
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 ),
               ),
+
+              // ── Refund: Cash/Online selector ─────────────────────────────
+              if (selectedResolution == 'refunded') ...[
+                const SizedBox(height: 14),
+                const Text('How did the dealer refund you?',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8.0,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Online (GPAY/Bank)'),
+                      selected: refundPaymentMode == 'Online',
+                      selectedColor: Colors.blue.shade100,
+                      onSelected: (val) {
+                        if (val) setDialogState(() => refundPaymentMode = 'Online');
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Cash'),
+                      selected: refundPaymentMode == 'Cash',
+                      selectedColor: Colors.green.shade100,
+                      onSelected: (val) {
+                        if (val) setDialogState(() => refundPaymentMode = 'Cash');
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 15, color: Colors.green.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          refundPaymentMode == 'Online'
+                              ? 'Refund will be added to your Online/Bank balance.'
+                              : 'Refund will be added to your Cash Drawer balance.',
+                          style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // ── Rejected: Permanent loss warning ─────────────────────────
+              if (selectedResolution == 'rejected') ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 18, color: Colors.red.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(fontSize: 12, color: Colors.red.shade800),
+                            children: [
+                              const TextSpan(
+                                text: 'Permanent Loss! ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              TextSpan(
+                                text: 'The loss of ₹${((claim.costPrice ?? 0) * claim.quantity).toStringAsFixed(0)} '
+                                    'for ${claim.productName} will remain as a confirmed business expense. '
+                                    'No recovery will be recorded.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -468,11 +559,20 @@ class _DealerClaimsScreenState extends State<DealerClaimsScreen> with SingleTick
                   : () async {
                       setDialogState(() => isSubmitting = true);
                       try {
-                        await DatabaseService().resolveDealerClaim(claim.id, selectedResolution);
+                        await DatabaseService().resolveDealerClaim(
+                          claim.id,
+                          selectedResolution,
+                          refundPaymentMode: refundPaymentMode,
+                        );
                         if (mounted) {
                           Navigator.pop(dialogCtx);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Dealer claim successfully resolved'), backgroundColor: Colors.green),
+                            SnackBar(
+                              content: Text(selectedResolution == 'rejected'
+                                  ? 'Claim marked as rejected. Loss is permanently recorded.'
+                                  : 'Dealer claim successfully resolved'),
+                              backgroundColor: selectedResolution == 'rejected' ? Colors.red.shade700 : Colors.green,
+                            ),
                           );
                         }
                       } catch (e) {
@@ -484,16 +584,20 @@ class _DealerClaimsScreenState extends State<DealerClaimsScreen> with SingleTick
                         }
                       }
                     },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade800, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedResolution == 'rejected' ? Colors.red.shade700 : Colors.blue.shade800,
+                foregroundColor: Colors.white,
+              ),
               child: isSubmitting
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Confirm Resolution'),
+                  : Text(selectedResolution == 'rejected' ? 'Confirm Permanent Loss' : 'Confirm Resolution'),
             ),
           ],
         ),
       ),
     );
   }
+
 
   Color _getStatusColor(String status) {
     switch (status) {

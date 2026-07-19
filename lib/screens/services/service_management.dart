@@ -10,6 +10,10 @@ import '../../models/service_model.dart';
 
 import '../../models/replacement_model.dart';
 
+import '../../models/category_model.dart';
+
+import '../../models/product_model.dart';
+
 import '../../utils/app_theme.dart';
 
 import '../owner/sales_reports.dart';
@@ -53,6 +57,67 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
     _loadGstSettings();
 
     _servicesStream = DatabaseService().getServices(widget.shopId);
+  }
+
+  void _sendServiceWhatsAppNotification(ServiceModel service) {
+    final String dateStr =
+        DateFormat('dd-MM-yyyy hh:mm a').format(service.timestamp);
+    final String shopName = ShopHelper.getDisplayName(service.shopId).toUpperCase();
+
+    final buffer = StringBuffer();
+
+    if (service.status == 'Completed') {
+      buffer.writeln('🔔 *$shopName - SERVICE COMPLETED*');
+      buffer.writeln('----------------------------------------');
+      buffer.writeln('Hello ${service.customerName},');
+      buffer.writeln('Your device *${service.mobileModel}* is successfully repaired and ready for collection! 📱✅');
+    } else {
+      buffer.writeln('🧾 *$shopName - SERVICE DELIVERED*');
+      buffer.writeln('----------------------------------------');
+      buffer.writeln('Hello ${service.customerName},');
+      buffer.writeln('Your device *${service.mobileModel}* has been successfully delivered. Thank you! 📱🤝');
+    }
+
+    buffer.writeln('----------------------------------------');
+    buffer.writeln('🛠️ *Details:* ${service.mobileDetails}');
+    buffer.writeln('📅 *Date:* $dateStr');
+    buffer.writeln('----------------------------------------');
+    buffer.writeln('💰 *Total Amount:* ₹${service.totalAmount.toStringAsFixed(0)}');
+
+    if (service.status == 'Completed') {
+      if (service.remainingAmount == 0) {
+        buffer.writeln('🟢 *Payment Status:* FULLY PAID');
+      } else {
+        buffer.writeln('💵 *Advance Paid:* ₹${service.advanceAmount.toStringAsFixed(0)}');
+        buffer.writeln('🔴 *Remaining Balance:* ₹${service.remainingAmount.toStringAsFixed(0)}');
+        buffer.writeln('----------------------------------------');
+        buffer.writeln('🔴 *Please pay the remaining balance of ₹${service.remainingAmount.toStringAsFixed(0)} during collection.*');
+      }
+    } else {
+      buffer.writeln('💵 *Advance Paid:* ₹${service.advanceAmount.toStringAsFixed(0)}');
+      if (service.remainingAmount > 0) {
+        buffer.writeln('🔴 *Remaining Balance:* ₹${service.remainingAmount.toStringAsFixed(0)}');
+      } else {
+        buffer.writeln('🟢 *Remaining Balance:* ₹0 (Fully Settled)');
+      }
+    }
+
+    // Complementary items section
+    if (service.complementaryItems.isNotEmpty) {
+      buffer.writeln('----------------------------------------');
+      buffer.writeln('🎁 *Complimentary Item(s):*');
+      for (final item in service.complementaryItems) {
+        final name = item['productName'] as String? ?? 'Item';
+        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+        buffer.writeln('  • $name × $qty');
+      }
+      buffer.writeln('_(Complimentary — No Charge)_');
+    }
+
+    buffer.writeln('----------------------------------------');
+    buffer.writeln('Thank you! 🙏');
+
+    _launchWhatsApp(service.customerPhone, buffer.toString());
   }
 
   Future<void> _loadGstSettings() async {
@@ -122,6 +187,24 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
     }
   }
 
+  void _callCustomer(String phone) async {
+    final String cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanPhone.isEmpty) return;
+    final Uri uri = Uri.parse('tel:$cleanPhone');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open phone dialer.')));
+        }
+      }
+    } catch (e) {
+      debugPrint('Error launching phone dialer: $e');
+    }
+  }
+
   void _showServiceBillOptionsDialog(
       BuildContext context, ServiceModel service) {
     showDialog(
@@ -158,51 +241,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
               ),
               onPressed: () {
                 Navigator.pop(dialogContext); // close dialog
-
-                final String dateStr =
-                    DateFormat('dd-MM-yyyy hh:mm a').format(service.timestamp);
-
-                final buffer = StringBuffer();
-
-                buffer.writeln(
-                    '🧾 *${ShopHelper.getDisplayName(service.shopId).toUpperCase()} - SERVICE RECEIPT*');
-
-                buffer.writeln('----------------------------------------');
-
-                buffer.writeln('👤 *Customer:* ${service.customerName}');
-
-                buffer.writeln('📱 *Device:* ${service.mobileModel}');
-
-                buffer.writeln('🛠️ *Details:* ${service.mobileDetails}');
-
-                buffer.writeln('📅 *Date:* $dateStr');
-
-                buffer.writeln('----------------------------------------');
-
-                buffer.writeln(
-                    '💰 *Total Amount:* ₹${service.totalAmount.toStringAsFixed(0)}');
-
-                if (service.remainingAmount == 0) {
-                  buffer.writeln(
-                      '🟢 *Payment Status:* FULLY PAID (₹${service.totalAmount.toStringAsFixed(0)})');
-                } else {
-                  buffer.writeln(
-                      '💵 *Advance Paid:* ₹${service.advanceAmount.toStringAsFixed(0)}');
-
-                  buffer.writeln(
-                      '🔴 *Remaining Balance:* ₹${service.remainingAmount.toStringAsFixed(0)}');
-
-                  buffer.writeln('----------------------------------------');
-
-                  buffer.writeln(
-                      '🔴 *Please pay the remaining balance of ₹${service.remainingAmount.toStringAsFixed(0)} during collection.*');
-                }
-
-                buffer.writeln('----------------------------------------');
-
-                buffer.writeln('Thank you! 🙏');
-
-                _launchWhatsApp(service.customerPhone, buffer.toString());
+                _sendServiceWhatsAppNotification(service);
               },
             ),
             ElevatedButton.icon(
@@ -349,6 +388,34 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                                 fontWeight: FontWeight.bold),
                           ),
                         ),
+                      if (service.status == 'Completed' || service.status == 'Delivered') ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {}, // absorbs tap to prevent expanding/collapsing tile
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.phone, size: 18, color: Colors.blue),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => _callCustomer(service.customerPhone),
+                                tooltip: 'Call Customer',
+                              ),
+                              const SizedBox(width: 10),
+                              IconButton(
+                                icon: const Icon(Icons.chat_outlined, size: 18, color: Colors.green),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => _sendServiceWhatsAppNotification(service),
+                                tooltip: 'Send WhatsApp Notification',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   subtitle: Row(
@@ -379,8 +446,44 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                         children: [
                           Text('Details: ${service.mobileDetails}',
                               style: const TextStyle(fontSize: 14)),
-                          Text('Phone: ${service.customerPhone}',
-                              style: const TextStyle(fontSize: 14)),
+                          Row(
+                            children: [
+                              Text('Phone: ${service.customerPhone}',
+                                  style: const TextStyle(fontSize: 14)),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () => _callCustomer(service.customerPhone),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.phone,
+                                        size: 16,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Call',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 12),
                           const Text('Payment Progress',
                               style: TextStyle(
@@ -445,15 +548,28 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                               final profit = netRevenue -
                                   service.partsCost -
                                   service.technicianFee -
-                                  service.reRepairCost;
+                                  service.reRepairCost -
+                                  service.complementaryCost;
 
-                              return Text(
-                                'Net Profit: ₹${profit.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: profit >= 0
-                                        ? Colors.green
-                                        : Colors.red),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Net Profit: ₹${profit.toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: profit >= 0
+                                            ? Colors.green
+                                            : Colors.red),
+                                  ),
+                                  if (service.complementaryCost > 0)
+                                    Text(
+                                      'Complement Cost: -₹${service.complementaryCost.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.orange),
+                                    ),
+                                ],
                               );
                             }),
                           ],
@@ -653,15 +769,8 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
       if (service.remainingAmount > 0) {
         _showDeliveryPaymentDialog(context, service);
       } else {
-        SoundHelper.playSuccess();
-
-        final updated = service.copyWith(status: 'Delivered');
-
-        DatabaseService().updateService(updated).catchError((e) {
-          debugPrint('Error updating status: $e');
-        });
-
-        if (mounted) _showServiceBillOptionsDialog(context, updated);
+        // Zero balance — show delivery dialog with complement toggle
+        _showZeroBalanceDeliveryDialog(context, service);
       }
     } catch (e) {
       debugPrint('Error checking re-repairs: $e');
@@ -671,15 +780,497 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
       if (service.remainingAmount > 0) {
         _showDeliveryPaymentDialog(context, service);
       } else {
-        SoundHelper.playSuccess();
-
-        final updated = service.copyWith(status: 'Delivered');
-
-        DatabaseService().updateService(updated);
-
-        if (mounted) _showServiceBillOptionsDialog(context, updated);
+        _showZeroBalanceDeliveryDialog(context, service);
       }
     }
+  }
+
+  // ── Zero-Balance Delivery Dialog (with complement toggle) ────────────────
+
+  void _showZeroBalanceDeliveryDialog(
+      BuildContext context, ServiceModel service) {
+    bool addComplements = false;
+    List<Map<String, dynamic>> complementItems = [];
+    String? selectedCategory;
+    ProductModel? selectedProduct;
+    final qtyController = TextEditingController(text: '1');
+    String productSearchQuery = '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (innerCtx, setDialogState) {
+          return AlertDialog(
+            scrollable: true,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.local_shipping_outlined,
+                    color: Colors.green.shade700, size: 28),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Deliver Device',
+                    style: TextStyle(fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${service.customerName} — ${service.mobileModel}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 18),
+                      SizedBox(width: 8),
+                      Text('Payment Fully Settled',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Complement toggle
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Add Complementary Products?',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text('Free gift from stock',
+                      style: TextStyle(fontSize: 11)),
+                  value: addComplements,
+                  activeColor: Colors.deepOrange,
+                  onChanged: (val) =>
+                      setDialogState(() => addComplements = val),
+                ),
+                if (addComplements) ...[
+                  const Divider(),
+                  _buildComplementSection(
+                    context: innerCtx,
+                    setDialogState: setDialogState,
+                    complementItems: complementItems,
+                    selectedCategory: selectedCategory,
+                    selectedProduct: selectedProduct,
+                    qtyController: qtyController,
+                    productSearchQuery: productSearchQuery,
+                    onCategoryChanged: (val) => setDialogState(() {
+                      selectedCategory = val;
+                      selectedProduct = null;
+                    }),
+                    onProductChanged: (val) =>
+                        setDialogState(() => selectedProduct = val),
+                    onSearchChanged: (val) =>
+                        setDialogState(() => productSearchQuery = val),
+                    onItemRemoved: (idx) =>
+                        setDialogState(() => complementItems.removeAt(idx)),
+                    shopId: service.shopId,
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(dialogCtx);
+                  SoundHelper.playSuccess();
+
+                  final double totalCompCost = complementItems.fold(
+                      0.0,
+                      (sum, item) =>
+                          sum +
+                          ((item['costPrice'] as num?)?.toDouble() ?? 0.0) *
+                              ((item['quantity'] as num?)?.toInt() ?? 1));
+
+                  final updated = service.copyWith(
+                    status: 'Delivered',
+                    complementaryItems: List<Map<String, dynamic>>.from(
+                        complementItems),
+                    complementaryCost: totalCompCost,
+                  );
+
+                  // Save service + record complement stock/expenses
+                  DatabaseService().updateService(updated).catchError((e) {
+                    debugPrint('Error updating service: $e');
+                  });
+
+                  if (complementItems.isNotEmpty) {
+                    DatabaseService()
+                        .recordComplementaryItems(updated)
+                        .catchError((e) {
+                      debugPrint('Error recording complements: $e');
+                    });
+                  }
+
+                  if (mounted) _showServiceBillOptionsDialog(context, updated);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Deliver'),
+              ),
+            ],
+          );
+        },
+      ),
+    ).then((_) => qtyController.dispose());
+  }
+
+  // ── Shared Complement Product Picker Section ─────────────────────────────
+
+  Widget _buildComplementSection({
+    required BuildContext context,
+    required StateSetter setDialogState,
+    required List<Map<String, dynamic>> complementItems,
+    required String? selectedCategory,
+    required ProductModel? selectedProduct,
+    required TextEditingController qtyController,
+    required String productSearchQuery,
+    required ValueChanged<String?> onCategoryChanged,
+    required ValueChanged<ProductModel?> onProductChanged,
+    required ValueChanged<String> onSearchChanged,
+    required ValueChanged<int> onItemRemoved,
+    required String shopId,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Complementary Products',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        const SizedBox(height: 8),
+        // Category dropdown
+        StreamBuilder<List<CategoryModel>>(
+          stream: DatabaseService().getCategories(),
+          builder: (ctx, catSnap) {
+            if (!catSnap.hasData) {
+              return const SizedBox(
+                  height: 40,
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+            }
+            final cats = catSnap.data!.map((c) => c.name.trim()).toSet().toList();
+            final dropVal =
+                selectedCategory != null && cats.contains(selectedCategory)
+                    ? selectedCategory
+                    : null;
+            return DropdownButtonFormField<String>(
+              value: dropVal,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Select Category',
+                prefixIcon:
+                    const Icon(Icons.category_outlined, size: 18),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              items: cats
+                  .map((n) => DropdownMenuItem(
+                      value: n,
+                      child: Text(n, style: const TextStyle(fontSize: 13))))
+                  .toList(),
+              onChanged: onCategoryChanged,
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        // Product selector
+        StreamBuilder<List<ProductModel>>(
+          stream: DatabaseService().getProducts(shopId),
+          builder: (ctx, prodSnap) {
+            if (!prodSnap.hasData) {
+              return const SizedBox(
+                  height: 40,
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+            }
+            final products = selectedCategory == null
+                ? <ProductModel>[]
+                : prodSnap.data!
+                    .where((p) => p.category == selectedCategory)
+                    .toList();
+
+            return TextFormField(
+              key: ValueKey(
+                  'comp_prod_${selectedProduct?.id}_$selectedCategory'),
+              decoration: InputDecoration(
+                labelText: selectedCategory == null
+                    ? 'Select Category First'
+                    : 'Select Product',
+                hintText: selectedProduct != null
+                    ? '${selectedProduct!.name} (Stock: ${selectedProduct!.units})'
+                    : 'Tap to search...',
+                hintStyle: TextStyle(
+                  color: selectedProduct != null
+                      ? Colors.black87
+                      : Colors.grey,
+                  fontWeight: selectedProduct != null
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                  fontSize: 13,
+                ),
+                prefixIcon:
+                    const Icon(Icons.shopping_bag_outlined, size: 18),
+                suffixIcon: const Icon(Icons.search_rounded),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 10),
+              ),
+              readOnly: true,
+              onTap: selectedCategory == null
+                  ? null
+                  : () {
+                      String query = '';
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => StatefulBuilder(
+                          builder: (sheetCtx, setSheet) {
+                            final filtered = products.where((p) {
+                              return p.name
+                                  .toLowerCase()
+                                  .contains(query.toLowerCase());
+                            }).toList();
+                            return Container(
+                              height:
+                                  MediaQuery.of(context).size.height * 0.6,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(20)),
+                              ),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 8),
+                                  Container(
+                                      width: 40,
+                                      height: 4,
+                                      decoration: BoxDecoration(
+                                          color: Colors.grey.shade300,
+                                          borderRadius:
+                                              BorderRadius.circular(2))),
+                                  const SizedBox(height: 12),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    child: TextField(
+                                      autofocus: true,
+                                      decoration: InputDecoration(
+                                        hintText: 'Search product...',
+                                        prefixIcon:
+                                            const Icon(Icons.search),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10)),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 10),
+                                      ),
+                                      onChanged: (v) =>
+                                          setSheet(() => query = v),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: filtered.isEmpty
+                                        ? const Center(
+                                            child: Text('No products found'))
+                                        : ListView.separated(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 4),
+                                            itemCount: filtered.length,
+                                            separatorBuilder: (_, __) =>
+                                                const Divider(height: 1),
+                                            itemBuilder: (_, i) {
+                                              final p = filtered[i];
+                                              final bool outOfStock =
+                                                  p.units <= 0;
+                                              return ListTile(
+                                                title: Text(p.name,
+                                                    style: TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: outOfStock
+                                                            ? Colors.grey
+                                                            : Colors.black87)),
+                                                trailing: Text(
+                                                  'Stock: ${p.units}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: outOfStock
+                                                        ? Colors.red
+                                                        : Colors.green,
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                  ),
+                                                ),
+                                                onTap: () {
+                                                  if (outOfStock) {
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(SnackBar(
+                                                      content: Text(
+                                                          '${p.name} is not available in stock. Cannot add as complement.'),
+                                                      backgroundColor:
+                                                          Colors.red.shade700,
+                                                    ));
+                                                    return;
+                                                  }
+                                                  onProductChanged(p);
+                                                  Navigator.pop(sheetCtx);
+                                                },
+                                              );
+                                            },
+                                          ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: TextFormField(
+                controller: qtyController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Qty',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 3,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('ADD'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: selectedProduct == null
+                    ? null
+                    : () {
+                        final qty =
+                            int.tryParse(qtyController.text.trim()) ?? 1;
+                        if (qty <= 0) return;
+                        if (qty > selectedProduct!.units) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(
+                                'Only ${selectedProduct!.units} units available for ${selectedProduct!.name}.'),
+                            backgroundColor: Colors.red.shade700,
+                          ));
+                          return;
+                        }
+                        // Check if already added
+                        final existing = complementItems.indexWhere(
+                            (e) => e['productId'] == selectedProduct!.id);
+                        setDialogState(() {
+                          if (existing != -1) {
+                            complementItems[existing]['quantity'] =
+                                (complementItems[existing]['quantity'] as int) +
+                                    qty;
+                          } else {
+                            complementItems.add({
+                              'productId': selectedProduct!.id,
+                              'productName': selectedProduct!.name,
+                              'quantity': qty,
+                              'costPrice': selectedProduct!.costPrice,
+                            });
+                          }
+                          // Reset for next product
+                          onProductChanged(null);
+                          qtyController.text = '1';
+                        });
+                      },
+              ),
+            ),
+          ],
+        ),
+        if (complementItems.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🎁 Items to Gift:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Colors.deepOrange)),
+                const SizedBox(height: 6),
+                ...complementItems.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final item = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '• ${item['productName']} × ${item['quantity']}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => onItemRemoved(idx),
+                          child: const Icon(Icons.delete_outline,
+                              size: 18, color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   /// Shown when status changes to Completed — only saves CP/TC and marks expense recorded.
@@ -927,6 +1518,14 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
 
     String paymentMode = 'Cash';
 
+    // Complement state
+    bool addComplements = false;
+    List<Map<String, dynamic>> complementItems = [];
+    String? selectedCategory;
+    ProductModel? selectedProduct;
+    final compQtyController = TextEditingController(text: '1');
+    String productSearchQuery = '';
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1102,6 +1701,44 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                     ],
                   ),
                 ],
+                // ── Complement Toggle Section ─────────────────────────────
+                const SizedBox(height: 16),
+                const Divider(),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Add Complementary Products?',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  subtitle: const Text('Free gift from stock',
+                      style: TextStyle(fontSize: 11)),
+                  value: addComplements,
+                  activeColor: Colors.deepOrange,
+                  onChanged: (val) =>
+                      setDialogState(() => addComplements = val),
+                ),
+                if (addComplements) ...[
+                  const Divider(),
+                  _buildComplementSection(
+                    context: innerCtx,
+                    setDialogState: setDialogState,
+                    complementItems: complementItems,
+                    selectedCategory: selectedCategory,
+                    selectedProduct: selectedProduct,
+                    qtyController: compQtyController,
+                    productSearchQuery: productSearchQuery,
+                    onCategoryChanged: (val) => setDialogState(() {
+                      selectedCategory = val;
+                      selectedProduct = null;
+                    }),
+                    onProductChanged: (val) =>
+                        setDialogState(() => selectedProduct = val),
+                    onSearchChanged: (val) =>
+                        setDialogState(() => productSearchQuery = val),
+                    onItemRemoved: (idx) =>
+                        setDialogState(() => complementItems.removeAt(idx)),
+                    shopId: service.shopId,
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -1153,12 +1790,23 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                         final double newOnline =
                             service.onlineAmount + onlineAmt;
 
+                        final double totalCompCost = complementItems.fold(
+                            0.0,
+                            (sum, item) =>
+                                sum +
+                                ((item['costPrice'] as num?)?.toDouble() ??
+                                        0.0) *
+                                    ((item['quantity'] as num?)?.toInt() ?? 1));
+
                         final updated = service.copyWith(
                           status: 'Delivered',
                           advanceAmount: newAdvance,
                           remainingAmount: 0.0,
                           cashAmount: newCash,
                           onlineAmount: newOnline,
+                          complementaryItems:
+                              List<Map<String, dynamic>>.from(complementItems),
+                          complementaryCost: totalCompCost,
                         );
 
                         Navigator.pop(dialogCtx);
@@ -1170,6 +1818,14 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                             .catchError((e) {
                           debugPrint('Error: $e');
                         });
+
+                        if (complementItems.isNotEmpty) {
+                          DatabaseService()
+                              .recordComplementaryItems(updated)
+                              .catchError((e) {
+                            debugPrint('Error recording complements: $e');
+                          });
+                        }
 
                         if (mounted)
                           _showServiceBillOptionsDialog(context, updated);
@@ -1184,7 +1840,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
           );
         },
       ),
-    );
+    ).then((_) => compQtyController.dispose());
   }
 
   // ── Edit Service ─────────────────────────────────────────────────────────

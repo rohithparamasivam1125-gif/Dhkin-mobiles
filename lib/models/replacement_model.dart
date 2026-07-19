@@ -46,7 +46,7 @@ class ReplacementModel {
     this.dealerDocketNo,
     this.dealerSentDate,
     this.dealerResolvedDate,
-    this.paymentMode = 'Online',
+    this.paymentMode = 'Stock',
   });
 
   Map<String, dynamic> toMap() {
@@ -109,7 +109,7 @@ class ReplacementModel {
           : (map['dealerResolvedDate'] is String
               ? DateTime.tryParse(map['dealerResolvedDate'] as String)
               : null),
-      paymentMode: map['paymentMode'] ?? 'Online',
+      paymentMode: map['paymentMode'] ?? 'Stock',
     );
   }
 }

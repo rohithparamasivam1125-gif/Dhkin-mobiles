@@ -405,6 +405,7 @@ class _ShopReportView extends StatelessWidget {
     final genericExpTotal = generalExpenseList.fold<double>(0, (s, e) => s + e.amount);
     final partsCostTotal = expenses.where((e) => e.category == 'Parts Cost').fold<double>(0, (s, e) => s + e.amount);
     final specialistFeeTotal = expenses.where((e) => e.category == 'Specialist Fee').fold<double>(0, (s, e) => s + e.amount);
+    final giftExpensesTotal = generalExpenseList.where((e) => e.category == 'Complementary Gift').fold<double>(0, (s, e) => s + e.amount);
 
     final grossProfit  = salesTotal - cogs;
     final serviceProfit = serviceTotal - serviceExpenses;
@@ -630,15 +631,26 @@ class _ShopReportView extends StatelessWidget {
                 6: const pw.FixedColumnWidth(55),
               },
               oddRowDecoration: const pw.BoxDecoration(color: _kBg),
-              data: services.map((s) => [
-                    DateFormat('dd/MM/yy').format(s.timestamp),
-                    s.customerName,
-                    s.mobileModel,
-                    s.status,
-                    'Rs.${s.partsCost.toStringAsFixed(0)}',
-                    'Rs.${s.technicianFee.toStringAsFixed(0)}',
-                    'Rs.${s.advanceAmount.toStringAsFixed(0)}',
-                  ]).toList().cast<List<dynamic>>(),
+              data: services.map((s) {
+                String deviceText = s.mobileModel;
+                if (s.complementaryItems.isNotEmpty) {
+                  final gifts = s.complementaryItems.map((item) {
+                    final name = item['productName'] as String? ?? 'Item';
+                    final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+                    return '$name x$qty';
+                  }).join(', ');
+                  deviceText += '\n(Gift: $gifts)';
+                }
+                return [
+                  DateFormat('dd/MM/yy').format(s.timestamp),
+                  s.customerName,
+                  deviceText,
+                  s.status,
+                  'Rs.${s.partsCost.toStringAsFixed(0)}',
+                  'Rs.${s.technicianFee.toStringAsFixed(0)}',
+                  'Rs.${s.advanceAmount.toStringAsFixed(0)}',
+                ];
+              }).toList().cast<List<dynamic>>(),
             ),
             pw.SizedBox(height: 6),
             pw.Align(
@@ -749,7 +761,9 @@ class _ShopReportView extends StatelessWidget {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
                   if (genericExpTotal > 0)
-                    pw.Text('General Operational Expenses: Rs.${genericExpTotal.toStringAsFixed(0)}', style: ts(size: 8, color: _kGrey)),
+                    pw.Text('General Operational Expenses: Rs.${(genericExpTotal - giftExpensesTotal).toStringAsFixed(0)}', style: ts(size: 8, color: _kGrey)),
+                  if (giftExpensesTotal > 0)
+                    pw.Text('Complementary Gift Expenses: Rs.${giftExpensesTotal.toStringAsFixed(0)}', style: ts(size: 8, color: _kGrey)),
                   if (partsCostTotal > 0)
                     pw.Text('Service Parts Costs: Rs.${partsCostTotal.toStringAsFixed(0)}', style: ts(size: 8, color: _kGrey)),
                   if (specialistFeeTotal > 0)
@@ -815,8 +829,12 @@ class _ShopReportView extends StatelessWidget {
                   pw.Text('SHOP OPERATIONS & TAXES', style: ts(size: 8, bold: true, color: const PdfColor(0.8, 0.9, 1.0))),
                   pw.SizedBox(height: 4),
                   _pdfSummaryRow('General Expenses',
-                      '- Rs.${expTotal.toStringAsFixed(2)}', fontR, fontB,
+                      '- Rs.${(expTotal - giftExpensesTotal).toStringAsFixed(2)}', fontR, fontB,
                       valueColor: _kRed),
+                  if (giftExpensesTotal > 0)
+                    _pdfSummaryRow('Complementary Gift Expenses',
+                        '- Rs.${giftExpensesTotal.toStringAsFixed(2)}', fontR, fontB,
+                        valueColor: _kAmber),
                   if (gstCollected > 0)
                     _pdfSummaryRow('GST Collected (CGST + SGST)',
                         'Rs.${gstCollected.toStringAsFixed(2)}', fontR, fontB,
@@ -995,6 +1013,10 @@ class _ShopReportView extends StatelessWidget {
                       );
                     }
 
+                    final giftExpenses = expenses
+                        .where((e) => e.category == 'Complementary Gift')
+                        .fold<double>(0.0, (sum, e) => sum + e.amount);
+
                     final double cashSpentOnExpenses =
                         expenses.where((e) => e.paymentMode == 'Cash').fold<double>(0, (sum, e) => sum + e.amount);
 
@@ -1008,6 +1030,7 @@ class _ShopReportView extends StatelessWidget {
                           grossProfit: grossProfit,
                           cogs: cogs,
                           expenses: expTotal,
+                          giftExpenses: giftExpenses,
                           gstCollected: gstCollected,
                           serviceExpenses: serviceExpenses,
                           salesCount: sales.length,
@@ -1072,7 +1095,7 @@ class _ShopReportView extends StatelessWidget {
 // ─────────────────────────── Performance Card ─────────────────────────────────
 
 class _PerformanceCard extends StatelessWidget {
-  final double revenue, netProfit, grossProfit, cogs, expenses, gstCollected, serviceExpenses, cashCollected, onlineCollected, openingDrawerAmount, cashSpentOnExpenses, onlineSpentOnExpenses;
+  final double revenue, netProfit, grossProfit, cogs, expenses, giftExpenses, gstCollected, serviceExpenses, cashCollected, onlineCollected, openingDrawerAmount, cashSpentOnExpenses, onlineSpentOnExpenses;
   final int salesCount, serviceCount;
   final String periodLabel, filterName;
   final VoidCallback onPrint, onShare;
@@ -1083,6 +1106,7 @@ class _PerformanceCard extends StatelessWidget {
     required this.grossProfit,
     required this.cogs,
     required this.expenses,
+    required this.giftExpenses,
     required this.gstCollected,
     required this.serviceExpenses,
     required this.salesCount,
@@ -1237,6 +1261,19 @@ class _PerformanceCard extends StatelessWidget {
             if (onlineSpentOnExpenses > 0)
               _buildDetailRow('Online Spent on Expenses', '- ₹${onlineSpentOnExpenses.toStringAsFixed(0)}', const Color(0xFFEF9A9A)),
             _buildDetailRow('Total Net Online', '₹${(onlineCollected - onlineSpentOnExpenses).toStringAsFixed(0)}', const Color(0xFF81D4FA), isBold: true),
+            const SizedBox(height: 12),
+            const Divider(color: Colors.white12, height: 1),
+            const SizedBox(height: 12),
+            
+            // Operational Expenses / Gift Expenses breakdown
+            const Text(
+              'OPERATIONAL EXPENSES BREAKDOWN',
+              style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+            ),
+            const SizedBox(height: 6),
+            _buildDetailRow('General Shop Expenses', '₹${(expenses - giftExpenses).toStringAsFixed(0)}', const Color(0xFFEF9A9A)),
+            _buildDetailRow('Complementary Gift Expenses', '₹${giftExpenses.toStringAsFixed(0)}', const Color(0xFFFFB74D)),
+            _buildDetailRow('Total Operational Expenses', '₹${expenses.toStringAsFixed(0)}', const Color(0xFFEF9A9A), isBold: true),
             const SizedBox(height: 12),
             const Divider(color: Colors.white12, height: 1),
             const SizedBox(height: 12),
@@ -1752,6 +1789,32 @@ class _ServiceCard extends StatelessWidget {
                       '${service.customerName}  ·  ${service.customerPhone}',
                       style: const TextStyle(
                           fontSize: 12, color: AppTheme.graphiteGray)),
+                  if (service.complementaryItems.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: service.complementaryItems.map((item) {
+                        final name = item['productName'] as String? ?? 'Item';
+                        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.orange.shade200, width: 0.5),
+                          ),
+                          child: Text(
+                            '🎁 $name x$qty (FREE)',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.orange.shade900,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   Row(children: [
                     _PillInfo(

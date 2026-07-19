@@ -1659,31 +1659,55 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
                     ),
                   ),
                 const SizedBox(height: 12),
-                const Text('Payment Mode:', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8.0,
-                  runSpacing: 4.0,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Cash'),
-                      selected: paymentMode == 'Cash',
-                      selectedColor: isService ? Colors.orange.shade100 : Colors.green.shade100,
-                      onSelected: (val) {
-                        if (val) setDialogState(() => paymentMode = 'Cash');
-                      },
+                if (isService) ...[
+                  const Text('Payment Mode:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 4.0,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Cash'),
+                        selected: paymentMode == 'Cash',
+                        selectedColor: Colors.orange.shade100,
+                        onSelected: (val) {
+                          if (val) setDialogState(() => paymentMode = 'Cash');
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('Online'),
+                        selected: paymentMode == 'Online',
+                        selectedColor: Colors.orange.shade100,
+                        onSelected: (val) {
+                          if (val) setDialogState(() => paymentMode = 'Online');
+                        },
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
-                    ChoiceChip(
-                      label: const Text('Online'),
-                      selected: paymentMode == 'Online',
-                      selectedColor: isService ? Colors.orange.shade100 : Colors.green.shade100,
-                      onSelected: (val) {
-                        if (val) setDialogState(() => paymentMode = 'Online');
-                      },
+                    child: Row(
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 16, color: Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Loss logged as Stock write-off. Will not affect cash or online balances.',
+                            style: TextStyle(fontSize: 11, color: Colors.blue.shade800),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
+
               ],
             ),
             actions: [

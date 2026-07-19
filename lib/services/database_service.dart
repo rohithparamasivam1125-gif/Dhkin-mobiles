@@ -439,7 +439,32 @@ class DatabaseService {
       await Future.wait(repCleanupFutures);
     }
 
-    // 3. Sweep for any legacy expenses matched by description (older records)
+    // 3. Delete complementary gift expenses linked to this service & restore stock
+    if (service != null && service.complementaryItems.isNotEmpty) {
+      final compFutures = <Future>[];
+      for (final item in service.complementaryItems) {
+        final productId = item['productId'] as String? ?? '';
+        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+        if (productId.isNotEmpty) {
+          // Delete expense record
+          compFutures.add(
+            _db.collection('expenses').doc('EXP_COMP_${serviceId}_$productId').delete().catchError((_) {}),
+          );
+          // Restore stock
+          compFutures.add(
+            _db.collection('products').doc(productId).get().then((doc) async {
+              if (doc.exists) {
+                final currentUnits = (doc.data()?['units'] as num?)?.toInt() ?? 0;
+                await updateStock(productId, currentUnits + qty);
+              }
+            }).catchError((_) {})
+          );
+        }
+      }
+      if (compFutures.isNotEmpty) await Future.wait(compFutures);
+    }
+
+    // 4. Sweep for any legacy expenses matched by description (older records)
     if (service != null) {
       final legacyPattern = '[Cust: ${service.customerName}] | [Model: ${service.mobileModel}]';
       final expensesSnapshot = await _db.collection('expenses')
@@ -461,6 +486,46 @@ class DatabaseService {
   // Expense Operations
   Future<void> addExpense(ExpenseModel expense) async {
     await _db.collection('expenses').doc(expense.id).set(expense.toMap());
+  }
+
+  /// Records complementary (free gift) products given at service delivery.
+  /// Deducts stock for each item and creates an expense at cost price.
+  Future<void> recordComplementaryItems(ServiceModel service) async {
+    for (final item in service.complementaryItems) {
+      final String productId = item['productId'] as String? ?? '';
+      final String productName = item['productName'] as String? ?? 'Product';
+      final int qty = (item['quantity'] as num?)?.toInt() ?? 1;
+      final double costPrice = (item['costPrice'] as num?)?.toDouble() ?? 0.0;
+
+      if (productId.isEmpty) continue;
+
+      // 1. Deduct stock
+      try {
+        final productDoc = await _db.collection('products').doc(productId).get();
+        if (productDoc.exists) {
+          final currentUnits = (productDoc.data()?['units'] as num?)?.toInt() ?? 0;
+          final newUnits = (currentUnits - qty).clamp(0, currentUnits);
+          await updateStock(productId, newUnits);
+        }
+      } catch (e) {
+        print('Error deducting stock for complement $productId: $e');
+      }
+
+      // 2. Record expense at cost price only
+      if (costPrice > 0) {
+        final expense = ExpenseModel(
+          id: 'EXP_COMP_${service.id}_$productId',
+          shopId: service.shopId,
+          category: 'Complementary Gift',
+          amount: costPrice * qty,
+          description:
+              '[Complement] $productName × $qty | Service: ${service.customerName} - ${service.mobileModel}',
+          timestamp: DateTime.now(),
+          paymentMode: 'Stock',
+        );
+        await addExpense(expense);
+      }
+    }
   }
 
   Stream<List<ExpenseModel>> getExpenses(String shopId) {
@@ -626,7 +691,7 @@ class DatabaseService {
         amount: totalLoss,
         description: description,
         timestamp: DateTime.now(),
-        paymentMode: updatedReplacement.paymentMode,
+        paymentMode: updatedReplacement.isService ? updatedReplacement.paymentMode : 'Stock',
       );
       await addExpense(expense);
 
@@ -683,7 +748,7 @@ class DatabaseService {
     });
   }
 
-  Future<void> approveReplacement(String replacementId, double manualCostPrice, {String paymentMode = 'Online'}) async {
+  Future<void> approveReplacement(String replacementId, double manualCostPrice, {String paymentMode = 'Cash'}) async {
     final docRef = _db.collection('replacements').doc(replacementId);
     final doc = await docRef.get();
     
@@ -753,7 +818,7 @@ class DatabaseService {
           amount: totalLoss,
           description: description,
           timestamp: replacement.timestamp,
-          paymentMode: paymentMode,
+          paymentMode: replacement.isService ? paymentMode : 'Stock',
         );
         await addExpense(expense);
 
@@ -796,7 +861,7 @@ class DatabaseService {
     });
   }
 
-  Future<void> resolveDealerClaim(String replacementId, String resolution) async {
+  Future<void> resolveDealerClaim(String replacementId, String resolution, {String refundPaymentMode = 'Online'}) async {
     final docRef = _db.collection('replacements').doc(replacementId);
     final doc = await docRef.get();
     if (doc.exists) {
@@ -824,7 +889,7 @@ class DatabaseService {
             amount: -totalValue,
             description: '[Dealer Replaced] Offset for claim on ${replacement.productName} | Ref: ${replacement.dealerDocketNo ?? "N/A"}',
             timestamp: DateTime.now(),
-            paymentMode: 'Online',
+            paymentMode: replacement.paymentMode,
           );
           await addExpense(expense);
         }
@@ -844,7 +909,7 @@ class DatabaseService {
             amount: -totalValue,
             description: '[Dealer Refunded] Offset for claim on ${replacement.productName} | Ref: ${replacement.dealerDocketNo ?? "N/A"}',
             timestamp: DateTime.now(),
-            paymentMode: 'Online',
+            paymentMode: refundPaymentMode,
           );
           await addExpense(expense);
         }

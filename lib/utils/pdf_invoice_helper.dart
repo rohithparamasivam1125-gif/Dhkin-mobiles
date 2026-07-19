@@ -549,6 +549,50 @@ class PdfInvoiceHelper {
               ),
               pw.SizedBox(height: 20),
 
+              // ── Complementary Items Section ──────────────────────────
+              if (service.complementaryItems.isNotEmpty) ...[
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    color: const PdfColor(0.99, 0.95, 0.88),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    border: pw.Border.all(color: const PdfColor(0.9, 0.7, 0.3), width: 0.75),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('\uD83C\uDF81 Complimentary Item(s)',
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: const PdfColor(0.8, 0.4, 0.0))),
+                      pw.SizedBox(height: 6),
+                      ...service.complementaryItems.map((item) {
+                        final name = item['productName'] as String? ?? 'Item';
+                        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.only(bottom: 3),
+                          child: pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text('\u2022 $name \u00D7 $qty',
+                                  style: const pw.TextStyle(fontSize: 9)),
+                              pw.Text('FREE',
+                                  style: pw.TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: const PdfColor(0.0, 0.55, 0.27))),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+              ],
+
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,

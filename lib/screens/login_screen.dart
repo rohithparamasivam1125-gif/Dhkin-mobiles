@@ -373,9 +373,11 @@ class _StaffLoginSheetState extends State<_StaffLoginSheet> {
           _step = 2; // Show employees
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('ERROR LOADING EMPLOYEES: $e');
+      debugPrint(stackTrace.toString());
       setState(() {
-        _errorMessage = 'Failed to load employees.';
+        _errorMessage = 'Failed to load employees: $e';
         _step = 0;
       });
     }
