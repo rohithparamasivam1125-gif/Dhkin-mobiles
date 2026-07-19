@@ -35,13 +35,18 @@ class DatabaseService {
     if (shopId != null) {
       query = query.where('shopId', isEqualTo: shopId);
     }
-    return query.snapshots().map((snapshot) => snapshot.docs.map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>)).toList());
+    return query.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
+        .toList());
   }
 
   // Category Operations
+  // Category Operation
   Stream<List<CategoryModel>> getCategories() {
-    return _db.collection('categories').snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => CategoryModel.fromMap(doc.data() as Map<String, dynamic>)).toList());
+    return _db.collection('categories').snapshots().map((snapshot) => snapshot
+        .docs
+        .map((doc) => CategoryModel.fromMap(doc.data() as Map<String, dynamic>))
+        .toList());
   }
 
   Future<void> addCategory(CategoryModel category) async {
@@ -54,8 +59,9 @@ class DatabaseService {
     if (shopId != null) {
       query = query.where('shopId', isEqualTo: shopId);
     }
-    return query.snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => ProductModel.fromMap(doc.data() as Map<String, dynamic>)).toList());
+    return query.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => ProductModel.fromMap(doc.data() as Map<String, dynamic>))
+        .toList());
   }
 
   Future<void> addProduct(ProductModel product) async {
@@ -76,9 +82,10 @@ class DatabaseService {
 
   Future<void> updateProductCost(String productId, double cost) async {
     final batch = _db.batch();
-    
+
     // 1. Queue catalog update in batch
-    batch.update(_db.collection('products').doc(productId), {'costPrice': cost});
+    batch
+        .update(_db.collection('products').doc(productId), {'costPrice': cost});
 
     // 2. Fetch the product to resolve its shopId
     final prodDoc = await _db.collection('products').doc(productId).get();
@@ -86,7 +93,8 @@ class DatabaseService {
       final shopId = prodDoc.data()?['shopId'] as String?;
       if (shopId != null) {
         // 3. Find past sales in this shop for this product where costPrice is missing or <= 0
-        final salesSnapshot = await _db.collection('sales')
+        final salesSnapshot = await _db
+            .collection('sales')
             .where('shopId', isEqualTo: shopId)
             .get();
 
@@ -97,7 +105,9 @@ class DatabaseService {
             bool updated = false;
             final updatedItems = itemsList.map((itemRaw) {
               final item = Map<String, dynamic>.from(itemRaw as Map);
-              if (item['productId'] == productId && (item['costPrice'] == null || (item['costPrice'] as num) <= 0.0)) {
+              if (item['productId'] == productId &&
+                  (item['costPrice'] == null ||
+                      (item['costPrice'] as num) <= 0.0)) {
                 item['costPrice'] = cost;
                 updated = true;
               }
@@ -111,7 +121,7 @@ class DatabaseService {
         }
       }
     }
-    
+
     // 4. Commit all updates atomically in a single network request
     await batch.commit();
   }
@@ -119,7 +129,8 @@ class DatabaseService {
   Future<List<String>> findCustomerNamesByPhone(String phone) async {
     final Set<String> names = {};
     try {
-      final salesSnapshot = await _db.collection('sales')
+      final salesSnapshot = await _db
+          .collection('sales')
           .where('customerPhone', isEqualTo: phone)
           .get();
       for (var doc in salesSnapshot.docs) {
@@ -128,8 +139,9 @@ class DatabaseService {
           names.add(name.trim());
         }
       }
-      
-      final enquirySnapshot = await _db.collection('enquiries')
+
+      final enquirySnapshot = await _db
+          .collection('enquiries')
           .where('customerPhone', isEqualTo: phone)
           .get();
       for (var doc in enquirySnapshot.docs) {
@@ -139,7 +151,8 @@ class DatabaseService {
         }
       }
 
-      final servicesSnapshot = await _db.collection('services')
+      final servicesSnapshot = await _db
+          .collection('services')
           .where('customerPhone', isEqualTo: phone)
           .get();
       for (var doc in servicesSnapshot.docs) {
@@ -156,31 +169,40 @@ class DatabaseService {
   Future<void> addSale(SaleModel sale) async {
     try {
       // Set a 30-second timeout for the entire operation
-      await _db.collection('sales').doc(sale.id).set(sale.toMap())
+      await _db
+          .collection('sales')
+          .doc(sale.id)
+          .set(sale.toMap())
           .timeout(const Duration(seconds: 15), onTimeout: () {
-        throw TimeoutException('Firestore connection timed out. Check your internet or Firebase config.');
+        throw TimeoutException(
+            'Firestore connection timed out. Check your internet or Firebase config.');
       });
-      
+
       // Reduce stock for EVERY item in the bill
       for (var item in sale.items) {
         if (item.productId.startsWith('temp_')) continue;
-        var productDoc = await _db.collection('products').doc(item.productId).get();
+        var productDoc =
+            await _db.collection('products').doc(item.productId).get();
         if (productDoc.exists) {
-          var product = ProductModel.fromMap(productDoc.data() as Map<String, dynamic>);
+          var product =
+              ProductModel.fromMap(productDoc.data() as Map<String, dynamic>);
           int remainingStock = product.units - item.quantity;
-          await updateStock(item.productId, remainingStock < 0 ? 0 : remainingStock);
-          
+          await updateStock(
+              item.productId, remainingStock < 0 ? 0 : remainingStock);
+
           if (remainingStock < 5) {
-            await _sendNotification(sale.shopId, 'Low Stock Alert ⚠️', '${product.name} is running low ($remainingStock units left)');
+            await _sendNotification(sale.shopId, 'Low Stock Alert ⚠️',
+                '${product.name} is running low ($remainingStock units left)');
           }
         }
       }
-      
-      String itemSummary = sale.items.length == 1 
-        ? sale.items.first.productName 
-        : '${sale.items.length} items (${sale.items.first.productName}...)';
 
-      await _sendNotification(sale.shopId, 'New Sale 💰', '₹${sale.totalPrice} - $itemSummary by ${sale.employeeId}');
+      String itemSummary = sale.items.length == 1
+          ? sale.items.first.productName
+          : '${sale.items.length} items (${sale.items.first.productName}...)';
+
+      await _sendNotification(sale.shopId, 'New Sale 💰',
+          '₹${sale.totalPrice} - $itemSummary by ${sale.employeeId}');
     } catch (e) {
       print('Error in addSale: $e');
       rethrow;
@@ -193,9 +215,8 @@ class DatabaseService {
       query = query.where('shopId', isEqualTo: shopId);
     }
     return query.snapshots().map((snapshot) {
-      final list = snapshot.docs
-          .map((doc) => SaleModel.fromMap(doc.data()))
-          .toList();
+      final list =
+          snapshot.docs.map((doc) => SaleModel.fromMap(doc.data())).toList();
       list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       return list;
     });
@@ -206,7 +227,8 @@ class DatabaseService {
     if (doc.exists) {
       final sale = SaleModel.fromMap(doc.data()!);
       for (var item in sale.items) {
-        final productDoc = await _db.collection('products').doc(item.productId).get();
+        final productDoc =
+            await _db.collection('products').doc(item.productId).get();
         if (productDoc.exists) {
           final product = ProductModel.fromMap(productDoc.data()!);
           await updateStock(item.productId, product.units + item.quantity);
@@ -221,12 +243,14 @@ class DatabaseService {
     if (oldDoc.exists) {
       final oldSale = SaleModel.fromMap(oldDoc.data()!);
       for (var oldItem in oldSale.items) {
-        final newItemOpt = sale.items.where((i) => i.productId == oldItem.productId);
+        final newItemOpt =
+            sale.items.where((i) => i.productId == oldItem.productId);
         int newQty = newItemOpt.isNotEmpty ? newItemOpt.first.quantity : 0;
-        
+
         int qtyDiff = oldItem.quantity - newQty;
         if (qtyDiff != 0) {
-          final productDoc = await _db.collection('products').doc(oldItem.productId).get();
+          final productDoc =
+              await _db.collection('products').doc(oldItem.productId).get();
           if (productDoc.exists) {
             final product = ProductModel.fromMap(productDoc.data()!);
             await updateStock(oldItem.productId, product.units + qtyDiff);
@@ -240,7 +264,7 @@ class DatabaseService {
   // Mobile Services Operations
   Future<void> addService(ServiceModel service) async {
     await _db.collection('services').doc(service.id).set(service.toMap());
-    
+
     if (service.isExpenseRecorded) {
       // Automatically create the expense entries for partsCost and technicianFee since they are entered on creation
       if (service.technicianFee > 0) {
@@ -286,7 +310,8 @@ class DatabaseService {
     }
 
     if (service.employeeName != 'Owner') {
-      await _sendNotification(service.shopId, 'New Service Entry 📱', '${service.customerName} - ${service.mobileModel}');
+      await _sendNotification(service.shopId, 'New Service Entry 📱',
+          '${service.customerName} - ${service.mobileModel}');
     }
   }
 
@@ -294,7 +319,13 @@ class DatabaseService {
     await _db.collection('services').doc(serviceId).update({'status': status});
   }
 
-  Future<void> updateServicePayment(String serviceId, double additionalAmount, double currentAdvance, double totalAmount, double cashPaid, double onlinePaid) async {
+  Future<void> updateServicePayment(
+      String serviceId,
+      double additionalAmount,
+      double currentAdvance,
+      double totalAmount,
+      double cashPaid,
+      double onlinePaid) async {
     final double newAdvance = currentAdvance + additionalAmount;
     // NOTE: Status is intentionally NOT changed here.
     // Payment progress and repair status are tracked independently.
@@ -324,9 +355,8 @@ class DatabaseService {
       query = query.where('shopId', isEqualTo: shopId);
     }
     return query.snapshots().map((snapshot) {
-      final list = snapshot.docs
-          .map((doc) => ServiceModel.fromMap(doc.data()))
-          .toList();
+      final list =
+          snapshot.docs.map((doc) => ServiceModel.fromMap(doc.data())).toList();
       list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       return list;
     });
@@ -334,15 +364,20 @@ class DatabaseService {
 
   Future<void> updateService(ServiceModel service) async {
     // Determine final isExpenseRecorded flag
-    bool isExpenseRecorded = service.isExpenseRecorded || service.partsCost > 0 || service.technicianFee > 0;
-    
+    bool isExpenseRecorded = service.isExpenseRecorded ||
+        service.partsCost > 0 ||
+        service.technicianFee > 0;
+
     // Create copy with isExpenseRecorded set to true if needed
-    final serviceToSave = isExpenseRecorded != service.isExpenseRecorded 
+    final serviceToSave = isExpenseRecorded != service.isExpenseRecorded
         ? service.copyWith(isExpenseRecorded: isExpenseRecorded)
         : service;
 
     // 2. Perform the update
-    await _db.collection('services').doc(service.id).update(serviceToSave.toMap());
+    await _db
+        .collection('services')
+        .doc(service.id)
+        .update(serviceToSave.toMap());
 
     // 3. If expenses are recorded, manage expense entries and pending requests
     if (isExpenseRecorded) {
@@ -359,7 +394,11 @@ class DatabaseService {
         );
         await addExpense(expense);
       } else {
-        await _db.collection('expenses').doc('EXP_SVC_${service.id}').delete().catchError((_) {});
+        await _db
+            .collection('expenses')
+            .doc('EXP_SVC_${service.id}')
+            .delete()
+            .catchError((_) {});
       }
 
       if (service.partsCost > 0) {
@@ -375,15 +414,25 @@ class DatabaseService {
         );
         await addExpense(expense);
       } else {
-        await _db.collection('expenses').doc('EXP_PART_${service.id}').delete().catchError((_) {});
+        await _db
+            .collection('expenses')
+            .doc('EXP_PART_${service.id}')
+            .delete()
+            .catchError((_) {});
       }
 
       // Resolve the pending request if it exists
-      final reqDoc = await _db.collection('specialistFeeRequests').doc('SF_${service.id}').get();
+      final reqDoc = await _db
+          .collection('specialistFeeRequests')
+          .doc('SF_${service.id}')
+          .get();
       if (reqDoc.exists) {
         final status = reqDoc.data()?['status'] ?? 'pending';
         if (status == 'pending') {
-          await _db.collection('specialistFeeRequests').doc('SF_${service.id}').update({
+          await _db
+              .collection('specialistFeeRequests')
+              .doc('SF_${service.id}')
+              .update({
             'status': 'recorded',
           });
         }
@@ -393,14 +442,16 @@ class DatabaseService {
 
   Future<void> deleteService(String serviceId, {ServiceModel? service}) async {
     // If service object is not passed, fetch it before deletion (fallback for safety)
-    final ServiceModel? svc = service ?? await _db.collection('services').doc(serviceId).get().then((doc) {
-      return doc.exists ? ServiceModel.fromMap(doc.data()!) : null;
-    });
+    final ServiceModel? svc = service ??
+        await _db.collection('services').doc(serviceId).get().then((doc) {
+          return doc.exists ? ServiceModel.fromMap(doc.data()!) : null;
+        });
 
     // ── Step 1: Delete the service document IMMEDIATELY ─────────────────────
     // This triggers the Firestore stream update instantly so the card
     // disappears from the UI with zero perceived delay.
-    final deleteServiceFuture = _db.collection('services').doc(serviceId).delete();
+    final deleteServiceFuture =
+        _db.collection('services').doc(serviceId).delete();
 
     // ── Step 2: Run ALL cleanup in the background (non-blocking) ────────────
     _cleanupServiceData(serviceId, svc).catchError((e) {
@@ -411,17 +462,31 @@ class DatabaseService {
     await deleteServiceFuture;
   }
 
-  Future<void> _cleanupServiceData(String serviceId, ServiceModel? service) async {
+  Future<void> _cleanupServiceData(
+      String serviceId, ServiceModel? service) async {
     // 1. Delete known expense IDs (predictable, no scan needed)
     await Future.wait([
-      _db.collection('expenses').doc('EXP_SVC_$serviceId').delete().catchError((_) {}),
-      _db.collection('expenses').doc('EXP_PART_$serviceId').delete().catchError((_) {}),
-      _db.collection('specialistFeeRequests').doc('SF_$serviceId').delete().catchError((_) {}),
+      _db
+          .collection('expenses')
+          .doc('EXP_SVC_$serviceId')
+          .delete()
+          .catchError((_) {}),
+      _db
+          .collection('expenses')
+          .doc('EXP_PART_$serviceId')
+          .delete()
+          .catchError((_) {}),
+      _db
+          .collection('specialistFeeRequests')
+          .doc('SF_$serviceId')
+          .delete()
+          .catchError((_) {}),
     ]);
 
     // 2. Find and delete all re-repair replacement records linked to this service
     //    (productId == serviceId for service-type replacements)
-    final repSnap = await _db.collection('replacements')
+    final repSnap = await _db
+        .collection('replacements')
         .where('productId', isEqualTo: serviceId)
         .get();
 
@@ -430,7 +495,11 @@ class DatabaseService {
       final repId = doc.id;
       // Delete the associated expense record for this re-repair
       repCleanupFutures.add(
-        _db.collection('expenses').doc('EXP_REP_$repId').delete().catchError((_) {}),
+        _db
+            .collection('expenses')
+            .doc('EXP_REP_$repId')
+            .delete()
+            .catchError((_) {}),
       );
       // Delete the replacement record itself
       repCleanupFutures.add(doc.reference.delete().catchError((_) {}));
@@ -448,17 +517,20 @@ class DatabaseService {
         if (productId.isNotEmpty) {
           // Delete expense record
           compFutures.add(
-            _db.collection('expenses').doc('EXP_COMP_${serviceId}_$productId').delete().catchError((_) {}),
+            _db
+                .collection('expenses')
+                .doc('EXP_COMP_${serviceId}_$productId')
+                .delete()
+                .catchError((_) {}),
           );
           // Restore stock
           compFutures.add(
-            _db.collection('products').doc(productId).get().then((doc) async {
-              if (doc.exists) {
-                final currentUnits = (doc.data()?['units'] as num?)?.toInt() ?? 0;
-                await updateStock(productId, currentUnits + qty);
-              }
-            }).catchError((_) {})
-          );
+              _db.collection('products').doc(productId).get().then((doc) async {
+            if (doc.exists) {
+              final currentUnits = (doc.data()?['units'] as num?)?.toInt() ?? 0;
+              await updateStock(productId, currentUnits + qty);
+            }
+          }).catchError((_) {}));
         }
       }
       if (compFutures.isNotEmpty) await Future.wait(compFutures);
@@ -466,8 +538,10 @@ class DatabaseService {
 
     // 4. Sweep for any legacy expenses matched by description (older records)
     if (service != null) {
-      final legacyPattern = '[Cust: ${service.customerName}] | [Model: ${service.mobileModel}]';
-      final expensesSnapshot = await _db.collection('expenses')
+      final legacyPattern =
+          '[Cust: ${service.customerName}] | [Model: ${service.mobileModel}]';
+      final expensesSnapshot = await _db
+          .collection('expenses')
           .where('shopId', isEqualTo: service.shopId)
           .get();
       final legacyFutures = <Future>[];
@@ -501,9 +575,11 @@ class DatabaseService {
 
       // 1. Deduct stock
       try {
-        final productDoc = await _db.collection('products').doc(productId).get();
+        final productDoc =
+            await _db.collection('products').doc(productId).get();
         if (productDoc.exists) {
-          final currentUnits = (productDoc.data()?['units'] as num?)?.toInt() ?? 0;
+          final currentUnits =
+              (productDoc.data()?['units'] as num?)?.toInt() ?? 0;
           final newUnits = (currentUnits - qty).clamp(0, currentUnits);
           await updateStock(productId, newUnits);
         }
@@ -529,12 +605,13 @@ class DatabaseService {
   }
 
   Stream<List<ExpenseModel>> getExpenses(String shopId) {
-    return _db.collection('expenses')
+    return _db
+        .collection('expenses')
         .where('shopId', isEqualTo: shopId)
-        .snapshots().map((snapshot) {
-      final list = snapshot.docs
-          .map((doc) => ExpenseModel.fromMap(doc.data()))
-          .toList();
+        .snapshots()
+        .map((snapshot) {
+      final list =
+          snapshot.docs.map((doc) => ExpenseModel.fromMap(doc.data())).toList();
       list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       return list;
     });
@@ -556,10 +633,11 @@ class DatabaseService {
   }
 
   Future<void> _restoreStockAndCleanReplacement(String replacementId) async {
-    final repDoc = await _db.collection('replacements').doc(replacementId).get();
+    final repDoc =
+        await _db.collection('replacements').doc(replacementId).get();
     if (repDoc.exists) {
       final replacement = ReplacementModel.fromMap(repDoc.data()!);
-      
+
       // Determine the target product ID to restore stock
       String? targetProductId;
       if (replacement.isService && replacement.stockProductId != null) {
@@ -569,7 +647,8 @@ class DatabaseService {
       }
 
       if (targetProductId != null) {
-        final productDoc = await _db.collection('products').doc(targetProductId).get();
+        final productDoc =
+            await _db.collection('products').doc(targetProductId).get();
         if (productDoc.exists) {
           final product = ProductModel.fromMap(productDoc.data()!);
           int restoredStock = product.units + replacement.quantity;
@@ -596,7 +675,10 @@ class DatabaseService {
 
   // Replacement Operations (Wastage/Installation Errors)
   Future<void> addReplacementRequest(ReplacementModel replacement) async {
-    await _db.collection('replacements').doc(replacement.id).set(replacement.toMap());
+    await _db
+        .collection('replacements')
+        .doc(replacement.id)
+        .set(replacement.toMap());
 
     // If this is a service re-repair, revert the linked service back to Pending.
     // The phone needs more work — it is NOT ready for delivery.
@@ -613,7 +695,8 @@ class DatabaseService {
     );
   }
 
-  Future<void> addAndApproveReplacement(ReplacementModel replacement, double costValue) async {
+  Future<void> addAndApproveReplacement(
+      ReplacementModel replacement, double costValue) async {
     // 1. Resolve product cost price if not manually provided
     double resolvedCostPrice = costValue;
     final productId = replacement.productId;
@@ -623,11 +706,12 @@ class DatabaseService {
     if (replacement.isService && replacement.stockProductId != null) {
       targetProductId = replacement.stockProductId;
     } else if (!replacement.isService) {
-      targetProductId = productId; 
+      targetProductId = productId;
     }
 
     if (targetProductId != null && resolvedCostPrice <= 0.0) {
-      final productDoc = await _db.collection('products').doc(targetProductId).get();
+      final productDoc =
+          await _db.collection('products').doc(targetProductId).get();
       if (productDoc.exists) {
         final product = ProductModel.fromMap(productDoc.data()!);
         if (!replacement.isService && product.costPrice > 0) {
@@ -662,12 +746,17 @@ class DatabaseService {
     );
 
     // Write the replacement to Firestore (combining add + approve status change)
-    await _db.collection('replacements').doc(updatedReplacement.id).set(updatedReplacement.toMap());
+    await _db
+        .collection('replacements')
+        .doc(updatedReplacement.id)
+        .set(updatedReplacement.toMap());
 
     // 3. Reduce product stock (only if 'replace' or null returnAction)
-    final bool shouldReduceStock = (updatedReplacement.returnAction == null || updatedReplacement.returnAction == 'replace');
+    final bool shouldReduceStock = (updatedReplacement.returnAction == null ||
+        updatedReplacement.returnAction == 'replace');
     if (shouldReduceStock && targetProductId != null) {
-      final productDoc = await _db.collection('products').doc(targetProductId).get();
+      final productDoc =
+          await _db.collection('products').doc(targetProductId).get();
       if (productDoc.exists) {
         final product = ProductModel.fromMap(productDoc.data()!);
         int newStock = product.units - qty;
@@ -679,7 +768,9 @@ class DatabaseService {
     final double totalLoss = resolvedCostPrice * qty;
     if (totalLoss > 0) {
       final expenseId = 'EXP_REP_${updatedReplacement.id}';
-      final String category = updatedReplacement.isService ? 'Service Re-Repair Loss' : 'Replacement Loss';
+      final String category = updatedReplacement.isService
+          ? 'Service Re-Repair Loss'
+          : 'Replacement Loss';
       final String description = '[Cust: ${updatedReplacement.customerName}] | '
           '[Item: ${updatedReplacement.productName.replaceAll("Service: ", "")}] | '
           '[Qty: $qty] | [By: ${updatedReplacement.employeeName}]';
@@ -691,15 +782,19 @@ class DatabaseService {
         amount: totalLoss,
         description: description,
         timestamp: DateTime.now(),
-        paymentMode: updatedReplacement.isService ? updatedReplacement.paymentMode : 'Stock',
+        paymentMode: updatedReplacement.isService
+            ? updatedReplacement.paymentMode
+            : 'Stock',
       );
       await addExpense(expense);
 
       if (updatedReplacement.isService) {
-        final serviceDocRef = _db.collection('services').doc(updatedReplacement.productId);
+        final serviceDocRef =
+            _db.collection('services').doc(updatedReplacement.productId);
         final serviceDoc = await serviceDocRef.get();
         if (serviceDoc.exists) {
-          final double existingReRepair = (serviceDoc.data()?['reRepairCost'] ?? 0.0).toDouble();
+          final double existingReRepair =
+              (serviceDoc.data()?['reRepairCost'] ?? 0.0).toDouble();
           await serviceDocRef.update({
             'reRepairCost': existingReRepair + totalLoss,
           });
@@ -714,18 +809,24 @@ class DatabaseService {
     } else if (updatedReplacement.returnAction == 'exchange') {
       actionText = 'Exchange logged';
     }
-    final String notificationTitle = updatedReplacement.isService ? 'Re-Repair Approved ✅' : 'Replacement Approved ✅';
-    final String notificationBody = updatedReplacement.isService 
+    final String notificationTitle = updatedReplacement.isService
+        ? 'Re-Repair Approved ✅'
+        : 'Replacement Approved ✅';
+    final String notificationBody = updatedReplacement.isService
         ? 'Re-repair logged for ${updatedReplacement.productName}'
         : '$actionText by $qty for ${updatedReplacement.productName}. Total Loss: \u20B9${totalLoss.toStringAsFixed(0)}';
-        
-    _sendNotification(updatedReplacement.shopId, notificationTitle, notificationBody);
+
+    _sendNotification(
+        updatedReplacement.shopId, notificationTitle, notificationBody);
   }
 
-  Stream<List<ReplacementModel>> getReplacementRequests(String shopId, {String? status}) {
-    return _db.collection('replacements')
+  Stream<List<ReplacementModel>> getReplacementRequests(String shopId,
+      {String? status}) {
+    return _db
+        .collection('replacements')
         .where('shopId', isEqualTo: shopId)
-        .snapshots().map((snapshot) {
+        .snapshots()
+        .map((snapshot) {
       final list = snapshot.docs
           .map((doc) => ReplacementModel.fromMap(doc.data()))
           .where((r) => status == null || r.status == status)
@@ -736,9 +837,11 @@ class DatabaseService {
   }
 
   Stream<List<ReplacementModel>> getDealerClaims(String shopId) {
-    return _db.collection('replacements')
+    return _db
+        .collection('replacements')
         .where('shopId', isEqualTo: shopId)
-        .snapshots().map((snapshot) {
+        .snapshots()
+        .map((snapshot) {
       final list = snapshot.docs
           .map((doc) => ReplacementModel.fromMap(doc.data()))
           .where((r) => r.returnAction != null && r.status == 'accepted')
@@ -748,10 +851,11 @@ class DatabaseService {
     });
   }
 
-  Future<void> approveReplacement(String replacementId, double manualCostPrice, {String paymentMode = 'Cash'}) async {
+  Future<void> approveReplacement(String replacementId, double manualCostPrice,
+      {String paymentMode = 'Cash'}) async {
     final docRef = _db.collection('replacements').doc(replacementId);
     final doc = await docRef.get();
-    
+
     if (doc.exists) {
       final replacement = ReplacementModel.fromMap(doc.data()!);
       final productId = replacement.productId;
@@ -759,17 +863,18 @@ class DatabaseService {
 
       // 2. Reduce Product Stock & resolve actualCostPrice (Unit Cost)
       String? targetProductId;
-      double unitCostPrice = manualCostPrice; 
+      double unitCostPrice = manualCostPrice;
 
       if (replacement.isService && replacement.stockProductId != null) {
         targetProductId = replacement.stockProductId;
       } else if (!replacement.isService) {
-        targetProductId = productId; 
+        targetProductId = productId;
       }
 
       // Resolve unitCostPrice (Unit Cost)
       if (targetProductId != null && unitCostPrice <= 0.0) {
-        final productDoc = await _db.collection('products').doc(targetProductId).get();
+        final productDoc =
+            await _db.collection('products').doc(targetProductId).get();
         if (productDoc.exists) {
           final product = ProductModel.fromMap(productDoc.data()!);
           if (!replacement.isService && product.costPrice > 0) {
@@ -790,9 +895,11 @@ class DatabaseService {
       await docRef.update(updates);
 
       // 2. Subsequently reduce product stock (ONLY if returnAction is 'replace' or null)
-      final bool shouldReduceStock = (replacement.returnAction == null || replacement.returnAction == 'replace');
+      final bool shouldReduceStock = (replacement.returnAction == null ||
+          replacement.returnAction == 'replace');
       if (shouldReduceStock && targetProductId != null) {
-        final productDoc = await _db.collection('products').doc(targetProductId).get();
+        final productDoc =
+            await _db.collection('products').doc(targetProductId).get();
         if (productDoc.exists) {
           final product = ProductModel.fromMap(productDoc.data()!);
           int newStock = product.units - qty;
@@ -804,8 +911,10 @@ class DatabaseService {
       final double totalLoss = unitCostPrice * qty;
       if (totalLoss > 0) {
         final expenseId = 'EXP_REP_$replacementId';
-        final String category = replacement.isService ? 'Service Re-Repair Loss' : 'Replacement Loss';
-        
+        final String category = replacement.isService
+            ? 'Service Re-Repair Loss'
+            : 'Replacement Loss';
+
         // Structured description for professional PDF reporting
         final String description = '[Cust: ${replacement.customerName}] | '
             '[Item: ${replacement.productName.replaceAll("Service: ", "")}] | '
@@ -824,35 +933,41 @@ class DatabaseService {
 
         // Update the service re-repair cost if this is a service-related re-repair
         if (replacement.isService) {
-          final serviceDocRef = _db.collection('services').doc(replacement.productId);
+          final serviceDocRef =
+              _db.collection('services').doc(replacement.productId);
           final serviceDoc = await serviceDocRef.get();
           if (serviceDoc.exists) {
-            final double existingReRepair = (serviceDoc.data()?['reRepairCost'] ?? 0.0).toDouble();
+            final double existingReRepair =
+                (serviceDoc.data()?['reRepairCost'] ?? 0.0).toDouble();
             await serviceDocRef.update({
               'reRepairCost': existingReRepair + totalLoss,
             });
           }
         }
       }
-      
-      final String notificationTitle = replacement.isService ? 'Re-Repair Approved ✅' : 'Replacement Approved ✅';
-      
+
+      final String notificationTitle = replacement.isService
+          ? 'Re-Repair Approved ✅'
+          : 'Replacement Approved ✅';
+
       String actionText = 'Stock reduced';
       if (replacement.returnAction == 'refund') {
         actionText = 'Refund logged';
       } else if (replacement.returnAction == 'exchange') {
         actionText = 'Exchange logged';
       }
-      
-      final String notificationBody = replacement.isService 
+
+      final String notificationBody = replacement.isService
           ? 'Re-repair logged for ${replacement.productName}'
           : '$actionText by $qty for ${replacement.productName}. Total Loss: \u20B9${totalLoss.toStringAsFixed(0)}';
-          
-      await _sendNotification(replacement.shopId, notificationTitle, notificationBody);
+
+      await _sendNotification(
+          replacement.shopId, notificationTitle, notificationBody);
     }
   }
 
-  Future<void> sendReplacementToDealer(String replacementId, String dealerName) async {
+  Future<void> sendReplacementToDealer(
+      String replacementId, String dealerName) async {
     await _db.collection('replacements').doc(replacementId).update({
       'dealerStatus': 'sent_to_dealer',
       'dealerName': dealerName,
@@ -861,7 +976,8 @@ class DatabaseService {
     });
   }
 
-  Future<void> resolveDealerClaim(String replacementId, String resolution, {String refundPaymentMode = 'Online'}) async {
+  Future<void> resolveDealerClaim(String replacementId, String resolution,
+      {String refundPaymentMode = 'Online'}) async {
     final docRef = _db.collection('replacements').doc(replacementId);
     final doc = await docRef.get();
     if (doc.exists) {
@@ -873,7 +989,8 @@ class DatabaseService {
       if (resolution == 'replaced') {
         // Increment the active stock of the product by the quantity replaced
         final productId = replacement.productId;
-        final productDoc = await _db.collection('products').doc(productId).get();
+        final productDoc =
+            await _db.collection('products').doc(productId).get();
         if (productDoc.exists) {
           final product = ProductModel.fromMap(productDoc.data()!);
           await updateStock(productId, product.units + qty);
@@ -885,9 +1002,12 @@ class DatabaseService {
           final expense = ExpenseModel(
             id: expenseId,
             shopId: replacement.shopId,
-            category: replacement.isService ? 'Service Re-Repair Loss' : 'Replacement Loss',
+            category: replacement.isService
+                ? 'Service Re-Repair Loss'
+                : 'Replacement Loss',
             amount: -totalValue,
-            description: '[Dealer Replaced] Offset for claim on ${replacement.productName} | Ref: ${replacement.dealerDocketNo ?? "N/A"}',
+            description:
+                '[Dealer Replaced] Offset for claim on ${replacement.productName} | Ref: ${replacement.dealerDocketNo ?? "N/A"}',
             timestamp: DateTime.now(),
             paymentMode: replacement.paymentMode,
           );
@@ -905,9 +1025,12 @@ class DatabaseService {
           final expense = ExpenseModel(
             id: expenseId,
             shopId: replacement.shopId,
-            category: replacement.isService ? 'Service Re-Repair Loss' : 'Replacement Loss',
+            category: replacement.isService
+                ? 'Service Re-Repair Loss'
+                : 'Replacement Loss',
             amount: -totalValue,
-            description: '[Dealer Refunded] Offset for claim on ${replacement.productName} | Ref: ${replacement.dealerDocketNo ?? "N/A"}',
+            description:
+                '[Dealer Refunded] Offset for claim on ${replacement.productName} | Ref: ${replacement.dealerDocketNo ?? "N/A"}',
             timestamp: DateTime.now(),
             paymentMode: refundPaymentMode,
           );
@@ -928,7 +1051,10 @@ class DatabaseService {
   }
 
   Future<void> rejectReplacement(String replacementId) async {
-    await _db.collection('replacements').doc(replacementId).update({'status': 'rejected'});
+    await _db
+        .collection('replacements')
+        .doc(replacementId)
+        .update({'status': 'rejected'});
   }
 
   // Warranty/Search Operations - Unified Sales & Services
@@ -937,25 +1063,29 @@ class DatabaseService {
     if (cleanQuery.isEmpty) return [];
     final lowerQuery = cleanQuery.toLowerCase();
 
-    final salePhoneFuture = _db.collection('sales')
-      .where('customerPhone', isGreaterThanOrEqualTo: cleanQuery)
-      .where('customerPhone', isLessThanOrEqualTo: '$cleanQuery\uf8ff')
-      .get();
-    
-    final saleNameFuture = _db.collection('sales')
-      .where('customerNameLower', isGreaterThanOrEqualTo: lowerQuery)
-      .where('customerNameLower', isLessThanOrEqualTo: '$lowerQuery\uf8ff')
-      .get();
+    final salePhoneFuture = _db
+        .collection('sales')
+        .where('customerPhone', isGreaterThanOrEqualTo: cleanQuery)
+        .where('customerPhone', isLessThanOrEqualTo: '$cleanQuery\uf8ff')
+        .get();
 
-    final servicePhoneFuture = _db.collection('services')
-      .where('customerPhone', isGreaterThanOrEqualTo: cleanQuery)
-      .where('customerPhone', isLessThanOrEqualTo: '$cleanQuery\uf8ff')
-      .get();
-    
-    final serviceNameFuture = _db.collection('services')
-      .where('customerNameLower', isGreaterThanOrEqualTo: lowerQuery)
-      .where('customerNameLower', isLessThanOrEqualTo: '$lowerQuery\uf8ff')
-      .get();
+    final saleNameFuture = _db
+        .collection('sales')
+        .where('customerNameLower', isGreaterThanOrEqualTo: lowerQuery)
+        .where('customerNameLower', isLessThanOrEqualTo: '$lowerQuery\uf8ff')
+        .get();
+
+    final servicePhoneFuture = _db
+        .collection('services')
+        .where('customerPhone', isGreaterThanOrEqualTo: cleanQuery)
+        .where('customerPhone', isLessThanOrEqualTo: '$cleanQuery\uf8ff')
+        .get();
+
+    final serviceNameFuture = _db
+        .collection('services')
+        .where('customerNameLower', isGreaterThanOrEqualTo: lowerQuery)
+        .where('customerNameLower', isLessThanOrEqualTo: '$lowerQuery\uf8ff')
+        .get();
 
     final querySnapshots = await Future.wait([
       salePhoneFuture,
@@ -972,17 +1102,23 @@ class DatabaseService {
     // Merge and deduplicate
     Map<String, dynamic> uniqueRecords = {};
 
-    for (var doc in salePhoneQuery.docs) uniqueRecords[doc.id] = SaleModel.fromMap(doc.data());
-    for (var doc in saleNameQuery.docs) uniqueRecords[doc.id] = SaleModel.fromMap(doc.data());
-    for (var doc in servicePhoneQuery.docs) uniqueRecords[doc.id] = ServiceModel.fromMap(doc.data());
-    for (var doc in serviceNameQuery.docs) uniqueRecords[doc.id] = ServiceModel.fromMap(doc.data());
+    for (var doc in salePhoneQuery.docs)
+      uniqueRecords[doc.id] = SaleModel.fromMap(doc.data());
+    for (var doc in saleNameQuery.docs)
+      uniqueRecords[doc.id] = SaleModel.fromMap(doc.data());
+    for (var doc in servicePhoneQuery.docs)
+      uniqueRecords[doc.id] = ServiceModel.fromMap(doc.data());
+    for (var doc in serviceNameQuery.docs)
+      uniqueRecords[doc.id] = ServiceModel.fromMap(doc.data());
 
     List<dynamic> combined = uniqueRecords.values.toList();
-    
+
     // Sort by timestamp (both models have a timestamp field)
     combined.sort((a, b) {
-      DateTime timeA = (a is SaleModel) ? a.timestamp : (a as ServiceModel).timestamp;
-      DateTime timeB = (b is SaleModel) ? b.timestamp : (b as ServiceModel).timestamp;
+      DateTime timeA =
+          (a is SaleModel) ? a.timestamp : (a as ServiceModel).timestamp;
+      DateTime timeB =
+          (b is SaleModel) ? b.timestamp : (b as ServiceModel).timestamp;
       return timeB.compareTo(timeA);
     });
 
@@ -997,7 +1133,9 @@ class DatabaseService {
       final data = doc.data();
       if (data['customerNameLower'] == null) {
         await doc.reference.update({
-          'customerNameLower': (data['customerName'] ?? 'walk-in customer').toString().toLowerCase()
+          'customerNameLower': (data['customerName'] ?? 'walk-in customer')
+              .toString()
+              .toLowerCase()
         });
       }
     }
@@ -1008,14 +1146,16 @@ class DatabaseService {
       final data = doc.data();
       if (data['customerNameLower'] == null) {
         await doc.reference.update({
-          'customerNameLower': (data['customerName'] ?? 'customer').toString().toLowerCase()
+          'customerNameLower':
+              (data['customerName'] ?? 'customer').toString().toLowerCase()
         });
       }
     }
   }
 
   // Internal notification helper
-  Future<void> _sendNotification(String shopId, String title, String body) async {
+  Future<void> _sendNotification(
+      String shopId, String title, String body) async {
     print('Notification trigger: $title - $body');
     NotificationService().sendOneSignalNotification(title, body);
     await _db.collection('notifications').add({
@@ -1031,7 +1171,8 @@ class DatabaseService {
 
   /// Called when a staff member delivers a service — creates a pending request
   /// for the owner to enter the specialist fee.
-  Future<void> addSpecialistFeeRequest(SpecialistFeeRequestModel request) async {
+  Future<void> addSpecialistFeeRequest(
+      SpecialistFeeRequestModel request) async {
     await _db
         .collection('specialistFeeRequests')
         .doc(request.id)
@@ -1044,10 +1185,13 @@ class DatabaseService {
   }
 
   /// Stream of all pending specialist fee requests for a shop.
-  Stream<List<SpecialistFeeRequestModel>> getPendingSpecialistFeeRequests(String shopId) {
-    return _db.collection('specialistFeeRequests')
+  Stream<List<SpecialistFeeRequestModel>> getPendingSpecialistFeeRequests(
+      String shopId) {
+    return _db
+        .collection('specialistFeeRequests')
         .where('shopId', isEqualTo: shopId)
-        .snapshots().map((snap) {
+        .snapshots()
+        .map((snap) {
       final list = snap.docs
           .map((d) => SpecialistFeeRequestModel.fromMap(d.data()))
           .where((r) => r.status == 'pending')
@@ -1102,7 +1246,7 @@ class DatabaseService {
       'technicianPaymentMode': feePaymentMode,
       'isExpenseRecorded': true,
     });
-    
+
     await _db
         .collection('specialistFeeRequests')
         .doc(request.id)
@@ -1120,9 +1264,8 @@ class DatabaseService {
       query = query.where('shopId', isEqualTo: shopId);
     }
     return query.snapshots().map((snapshot) {
-      final list = snapshot.docs
-          .map((doc) => EnquiryModel.fromMap(doc.data()))
-          .toList();
+      final list =
+          snapshot.docs.map((doc) => EnquiryModel.fromMap(doc.data())).toList();
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
     });
@@ -1152,7 +1295,8 @@ class DatabaseService {
     }
     return query.snapshots().map((snapshot) {
       final list = snapshot.docs
-          .map((doc) => ProductOrderModel.fromMap(doc.data() as Map<String, dynamic>))
+          .map((doc) =>
+              ProductOrderModel.fromMap(doc.data() as Map<String, dynamic>))
           .toList();
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
@@ -1163,7 +1307,8 @@ class DatabaseService {
     await _db.collection('product_orders').doc(order.id).update(order.toMap());
   }
 
-  Future<void> markOrdersAsOrdered(List<String> orderItemIds, String orderId) async {
+  Future<void> markOrdersAsOrdered(
+      List<String> orderItemIds, String orderId) async {
     final batch = _db.batch();
     final now = DateTime.now();
     for (final id in orderItemIds) {
@@ -1177,7 +1322,8 @@ class DatabaseService {
   }
 
   Future<void> markOrderAsReceived(String orderId) async {
-    final snapshot = await _db.collection('product_orders')
+    final snapshot = await _db
+        .collection('product_orders')
         .where('orderId', isEqualTo: orderId)
         .get();
     final batch = _db.batch();
@@ -1210,7 +1356,10 @@ class DatabaseService {
   }
 
   Future<void> saveGstSettings(GstSettingsModel settings) async {
-    _db.collection('settings').doc('gst_${settings.shopId}').set(settings.toMap());
+    _db
+        .collection('settings')
+        .doc('gst_${settings.shopId}')
+        .set(settings.toMap());
   }
 
   Future<void> clearAllTransactionData() async {
