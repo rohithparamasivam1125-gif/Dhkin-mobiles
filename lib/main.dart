@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/login_screen.dart';
+import 'screens/blocked_screen.dart';
 import 'utils/app_theme.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
@@ -57,6 +58,67 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const LoginScreen(),
+      builder: (context, child) {
+        return AppStatusWrapper(child: child!);
+      },
+    );
+  }
+}
+
+class AppStatusWrapper extends StatelessWidget {
+  final Widget child;
+  const AppStatusWrapper({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('system_config')
+          .doc('app_status')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          debugPrint('Error loading app status: ${snapshot.error}');
+          return child;
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return child;
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        if (data == null) {
+          return child;
+        }
+
+        final bool isBlocked = data['isBlocked'] ?? false;
+        final String blockedMessage = data['blockedMessage'] ??
+            'Access suspended. Please contact the developer to resolve payment and restore service.';
+
+        final bool isUnderMaintenance = data['isUnderMaintenance'] ?? false;
+        final String maintenanceMessage = data['maintenanceMessage'] ??
+            'D&H Mobiles is currently undergoing scheduled maintenance. Please check back later.';
+
+        if (isBlocked) {
+          return BlockedScreen(
+            title: 'ACCESS SUSPENDED',
+            message: blockedMessage,
+            icon: Icons.block,
+            color: Colors.red.shade400,
+          );
+        }
+
+        if (isUnderMaintenance) {
+          return BlockedScreen(
+            title: 'UNDER MAINTENANCE',
+            message: maintenanceMessage,
+            icon: Icons.construction,
+            color: Colors.orange.shade400,
+          );
+        }
+
+        return child;
+      },
     );
   }
 }

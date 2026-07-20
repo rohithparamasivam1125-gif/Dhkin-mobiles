@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D&H Mobiles - Super Admin Dashboard</title>
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0d0f0e;
+      --forest-dark: #0a1f14;
+      --forest-mid: #153422;
+      --forest-light: #2c6e49;
+      --emerald-glow: #4ecb71;
+      --amber-glow: #e67e22;
+      --crimson-glow: #e74c3c;
+      --ivory-primary: #fffdf0;
+      --ivory-secondary: #f0edcf;
+      --charcoal: #1a1a1a;
+      --card-bg: rgba(26, 26, 26, 0.45);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, var(--forest-mid) 0%, var(--bg-dark) 80%);
+      color: var(--ivory-primary);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    /* Glassmorphic Container */
+    .dashboard-container {
+      width: 100%;
+      max-width: 680px;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 
+                  0 0 40px rgba(21, 52, 34, 0.25);
+      padding: 40px;
+      position: relative;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Header styling */
+    .header {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+
+    .logo-container {
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    .logo-fallback {
+      width: 70px;
+      height: 70px;
+      background: linear-gradient(135deg, var(--forest-mid), var(--forest-light));
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 253, 240, 0.2);
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 24px;
+      color: var(--ivory-primary);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+
+    .header h1 {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 32px;
+      letter-spacing: 2px;
+      color: var(--ivory-primary);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: rgba(255, 253, 240, 0.6);
+      font-weight: 500;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Live Sync Badge */
+    .sync-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(21, 52, 34, 0.4);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(78, 203, 113, 0.2);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-top: 15px;
+    }
+
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--emerald-glow);
+      box-shadow: 0 0 8px var(--emerald-glow);
+      animation: pulse 1.8s infinite;
+    }
+
+    .sync-dot.offline {
+      background-color: var(--crimson-glow);
+      box-shadow: 0 0 8px var(--crimson-glow);
+    }
+
+    /* Auth State View */
+    .auth-view {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .auth-view p {
+      text-align: center;
+      font-size: 14px;
+      color: rgba(255, 253, 240, 0.7);
+    }
+
+    .input-pin-container {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin: 15px 0;
+    }
+
+    .pin-input {
+      width: 50px;
+      height: 55px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--ivory-primary);
+      font-family: var(--font-display);
+      transition: all 0.2s ease;
+    }
+
+    .pin-input:focus {
+      outline: none;
+      border-color: var(--emerald-glow);
+      box-shadow: 0 0 10px rgba(78, 203, 113, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .auth-btn {
+      width: 100%;
+      max-width: 240px;
+      background: linear-gradient(135deg, var(--forest-light), var(--forest-mid));
+      color: var(--ivory-primary);
+      border: none;
+      padding: 14px 28px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .auth-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(21, 52, 34, 0.4);
+      filter: brightness(1.15);
+    }
+
+    .auth-error {
+      color: var(--crimson-glow);
+      font-size: 13px;
+      font-weight: 600;
+      min-height: 20px;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    /* Dashboard Action Views */
+    .dashboard-content {
+      display: none;
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    .config-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 24px;
+      transition: all 0.3s ease;
+    }
+
+    .config-card:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .card-icon {
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+    }
+
+    .maintenance-icon {
+      background: rgba(230, 126, 34, 0.15);
+      color: var(--amber-glow);
+    }
+
+    .block-icon {
+      background: rgba(231, 76, 60, 0.15);
+      color: var(--crimson-glow);
+    }
+
+    .passcode-icon {
+      background: rgba(78, 203, 113, 0.15);
+      color: var(--emerald-glow);
+    }
+
+    .card-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Custom Switch Container */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 28px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.1);
+      transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 34px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    input:checked + .slider.maintenance {
+      background-color: var(--amber-glow);
+    }
+
+    input:checked + .slider.block {
+      background-color: var(--crimson-glow);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    /* Inputs and Fields */
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field-group label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255, 253, 240, 0.5);
+    }
+
+    .textarea-input {
+      width: 100%;
+      height: 80px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1.5px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      color: var(--ivory-primary);
+      padding: 12px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      line-height: 1.5;
+      resize: none;
+      transition: all 0.3s ease;
+    }
+
+    .textarea-input:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .single-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1.5px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      color: var(--ivory-primary);
+      padding: 14px;
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      transition: all 0.3s ease;
+    }
+
+    .single-input:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .action-panel-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .save-btn {
+      flex: 1;
+      background: linear-gradient(135deg, var(--emerald-glow), #2ecc71);
+      color: var(--charcoal);
+      border: none;
+      padding: 16px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 10px 20px rgba(46, 204, 113, 0.15);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .save-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(46, 204, 113, 0.3);
+      filter: brightness(1.08);
+    }
+
+    .logout-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(255, 253, 240, 0.7);
+      padding: 16px 24px;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--ivory-primary);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Modal dialog */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(10px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: #1c1c1c;
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      transform: scale(0.9);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.active .modal-card {
+      transform: scale(1);
+    }
+
+    .modal-icon {
+      font-size: 32px;
+      color: var(--crimson-glow);
+      margin-bottom: 16px;
+    }
+
+    .modal-card h3 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: var(--ivory-primary);
+    }
+
+    .modal-card p {
+      font-size: 14px;
+      line-height: 1.5;
+      color: rgba(255, 253, 240, 0.7);
+      margin-bottom: 24px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .modal-btn.confirm {
+      background: var(--crimson-glow);
+      color: white;
+    }
+
+    .modal-btn.confirm:hover {
+      filter: brightness(1.15);
+    }
+
+    .modal-btn.cancel {
+      background: rgba(255,255,255,0.08);
+      color: var(--ivory-primary);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .modal-btn.cancel:hover {
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* Notification Banner */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--charcoal);
+      border: 1px solid var(--emerald-glow);
+      color: var(--ivory-primary);
+      padding: 14px 28px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 2000;
+      opacity: 0;
+    }
+
+    .toast.active {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0% { opacity: 0.6; box-shadow: 0 0 4px var(--emerald-glow); }
+      50% { opacity: 1; box-shadow: 0 0 12px var(--emerald-glow); }
+      100% { opacity: 0.6; box-shadow: 0 0 4px var(--emerald-glow); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    .shake {
+      animation: shake 0.4s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container" id="mainContainer">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-container">
+        <div class="logo-fallback">D&H</div>
+      </div>
+      <h1>App Status Control</h1>
+      <p>Super Admin Panel</p>
+      <div class="sync-badge">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncText">Syncing Database...</span>
+      </div>
+    </div>
+
+    <!-- Login Mode -->
+    <div class="auth-view" id="authView">
+      <p>Enter your 4-digit Super Admin passcode to modify configurations.</p>
+      <div class="input-pin-container">
+        <input type="password" class="pin-input" maxlength="1" oninput="moveNext(this, 1)" onkeydown="checkBack(event, 1)">
+        <input type="password" class="pin-input" maxlength="1" oninput="moveNext(this, 2)" onkeydown="checkBack(event, 2)">
+        <input type="password" class="pin-input" maxlength="1" oninput="moveNext(this, 3)" onkeydown="checkBack(event, 3)">
+        <input type="password" class="pin-input" maxlength="1" oninput="moveNext(this, 4)" onkeydown="checkBack(event, 4)">
+      </div>
+      <div class="auth-error" id="authError">Incorrect Passcode. Try again.</div>
+      <button class="auth-btn" onclick="verifyAdminCode()">AUTHORIZE</button>
+    </div>
+
+    <!-- Admin Panel Mode -->
+    <div class="dashboard-content" id="dashboardContent">
+      
+      <!-- Maintenance Configuration -->
+      <div class="config-card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon maintenance-icon">🔨</div>
+            <h2>Maintenance Mode</h2>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="maintenanceToggle">
+            <span class="slider maintenance"></span>
+          </label>
+        </div>
+        <div class="field-group">
+          <label for="maintenanceMessage">Screen Message</label>
+          <textarea id="maintenanceMessage" class="textarea-input" placeholder="Type maintenance details here..."></textarea>
+        </div>
+      </div>
+
+      <!-- Payment / Suspend Configuration -->
+      <div class="config-card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon block-icon">⚠️</div>
+            <h2>Block App Usage</h2>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="blockToggle" onchange="handleBlockToggle(this)">
+            <span class="slider block"></span>
+          </label>
+        </div>
+        <div class="field-group">
+          <label for="blockMessage">Screen Message (e.g. Unpaid Notice)</label>
+          <textarea id="blockMessage" class="textarea-input" placeholder="Type suspension notice details here..."></textarea>
+        </div>
+      </div>
+
+      <!-- Change Security Pin -->
+      <div class="config-card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon passcode-icon">🔒</div>
+            <h2>Update Security Passcode</h2>
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="newPasscode">New 4-digit Passcode</label>
+          <input type="password" id="newPasscode" class="single-input" maxlength="4" placeholder="••••" pattern="[0-9]*" inputmode="numeric">
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="action-panel-footer">
+        <button class="logout-btn" onclick="logoutAdmin()">LOCK</button>
+        <button class="save-btn" onclick="saveConfiguration()">Apply Changes</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Safety Confirmation Dialog -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal-card">
+      <div class="modal-icon">🚨</div>
+      <h3>Are you absolutely sure?</h3>
+      <p>Enabling "Block App Usage" will immediately kick out all employees/owners from the mobile application and block access on all active devices. Use this to restrict access if payment is pending.</p>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="cancelBlockToggle()">NO, CANCEL</button>
+        <button class="modal-btn confirm" onclick="confirmBlockToggle()">YES, BLOCK APP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Toast -->
+  <div class="toast" id="successToast">
+    <span>✓</span> Config saved & synced successfully!
+  </div>
+
+  <script>
+    // Firebase Web configuration retrieved from lib/firebase_options.dart
+    const firebaseConfig = {
+      apiKey: "AIzaSyDeOkjEsCb7DDHxsNoYZrjQrExyuGzA3Ls",
+      authDomain: "dhkin-mobiles.firebaseapp.com",
+      projectId: "dhkin-mobiles",
+      storageBucket: "dhkin-mobiles.firebasestorage.app",
+      messagingSenderId: "986249206652",
+      appId: "1:986249206652:web:ec0a03e9ce831f4889a2f9",
+      measurementId: "G-X95CFB14ZS"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const docRef = db.collection('system_config').doc('app_status');
+
+    let currentConfig = null;
+    let autoSaveTimer = null;
+    let pendingBlockState = false;
+
+    // PIN field helper navigation
+    const inputs = document.querySelectorAll('.pin-input');
+    function moveNext(input, idx) {
+      if (input.value.length === 1 && idx < 4) {
+        inputs[idx].focus();
+      }
+    }
+    function checkBack(e, idx) {
+      if (e.key === "Backspace" && idx > 1 && !inputs[idx - 1].value) {
+        inputs[idx - 2].focus();
+      }
+    }
+
+    // Connect and listen to Firestore
+    docRef.onSnapshot((doc) => {
+      document.getElementById('syncDot').classList.remove('offline');
+      document.getElementById('syncText').textContent = 'Synced Live with Database';
+      
+      if (doc.exists) {
+        currentConfig = doc.data();
+        
+        // Auto fill if logged in
+        if (document.getElementById('dashboardContent').style.display === 'block') {
+          updateFormFields();
+        }
+      } else {
+        // Document does not exist. Initialize it with default credentials
+        initializeDefaultConfig();
+      }
+    }, (error) => {
+      console.error("Firestore sync error:", error);
+      document.getElementById('syncDot').classList.add('offline');
+      document.getElementById('syncText').textContent = 'Database Offline / Permission Denied';
+    });
+
+    function initializeDefaultConfig() {
+      const defaults = {
+        isUnderMaintenance: false,
+        maintenanceMessage: "D&H Mobiles is currently undergoing scheduled maintenance. Please check back later.",
+        isBlocked: false,
+        blockedMessage: "Access suspended. Please contact the developer to resolve payment and restore service.",
+        adminPasscode: "9988"
+      };
+      
+      docRef.set(defaults)
+        .then(() => {
+          currentConfig = defaults;
+          showToast("Initialized default settings in database.");
+        })
+        .catch(err => {
+          console.error("Failed to initialize default config:", err);
+          showToast("Error creating default settings!");
+        });
+    }
+
+    function updateFormFields() {
+      if (!currentConfig) return;
+      document.getElementById('maintenanceToggle').checked = currentConfig.isUnderMaintenance || false;
+      document.getElementById('maintenanceMessage').value = currentConfig.maintenanceMessage || "";
+      
+      document.getElementById('blockToggle').checked = currentConfig.isBlocked || false;
+      document.getElementById('blockMessage').value = currentConfig.blockedMessage || "";
+      document.getElementById('newPasscode').value = ""; // clear passcode input field
+    }
+
+    // Verify code
+    function verifyAdminCode() {
+      let code = "";
+      inputs.forEach(input => code += input.value);
+
+      if (!currentConfig) {
+        showAuthError("Loading database... Please wait a moment.");
+        return;
+      }
+
+      if (code === currentConfig.adminPasscode) {
+        // Correct pin, grant access
+        localStorage.setItem('dhkin_admin_session_auth', 'true');
+        enterDashboard();
+      } else {
+        // Shake card and clear input
+        const container = document.getElementById('mainContainer');
+        container.classList.add('shake');
+        setTimeout(() => container.classList.remove('shake'), 400);
+        showAuthError("Incorrect passcode. Try again.");
+        inputs.forEach(input => input.value = "");
+        inputs[0].focus();
+      }
+    }
+
+    function showAuthError(msg) {
+      const err = document.getElementById('authError');
+      err.textContent = msg;
+      err.style.opacity = 1;
+      setTimeout(() => err.style.opacity = 0, 4000);
+    }
+
+    function enterDashboard() {
+      document.getElementById('authView').style.display = 'none';
+      document.getElementById('dashboardContent').style.display = 'block';
+      updateFormFields();
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem('dhkin_admin_session_auth');
+      document.getElementById('dashboardContent').style.display = 'none';
+      document.getElementById('authView').style.display = 'flex';
+      inputs.forEach(input => input.value = "");
+      inputs[0].focus();
+    }
+
+    // Block Confirmation Handlers
+    function handleBlockToggle(checkbox) {
+      if (checkbox.checked) {
+        // Prompt dialog
+        pendingBlockState = true;
+        document.getElementById('confirmModal').classList.add('active');
+        checkbox.checked = false; // reset visually until confirm
+      }
+    }
+
+    function confirmBlockToggle() {
+      document.getElementById('confirmModal').classList.remove('active');
+      document.getElementById('blockToggle').checked = true;
+      pendingBlockState = false;
+    }
+
+    function cancelBlockToggle() {
+      document.getElementById('confirmModal').classList.remove('active');
+      document.getElementById('blockToggle').checked = false;
+      pendingBlockState = false;
+    }
+
+    // Save configuration updates back to Firestore
+    function saveConfiguration() {
+      if (!currentConfig) return;
+
+      const updateData = {
+        isUnderMaintenance: document.getElementById('maintenanceToggle').checked,
+        maintenanceMessage: document.getElementById('maintenanceMessage').value,
+        isBlocked: document.getElementById('blockToggle').checked,
+        blockedMessage: document.getElementById('blockMessage').value,
+      };
+
+      // Check if new password is input
+      const newPinInput = document.getElementById('newPasscode').value.trim();
+      if (newPinInput) {
+        if (newPinInput.length !== 4 || isNaN(newPinInput)) {
+          alert("Passcode must be exactly 4 digits.");
+          return;
+        }
+        updateData.adminPasscode = newPinInput;
+      }
+
+      docRef.update(updateData)
+        .then(() => {
+          showToast("Config saved & synced successfully!");
+          document.getElementById('newPasscode').value = ""; // clear pin input
+        })
+        .catch(err => {
+          console.error("Write error:", err);
+          alert("Write Permission Denied! Ensure database rules allow system_config access.");
+        });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('successToast');
+      toast.querySelector('span').nextSibling.textContent = " " + msg;
+      toast.classList.add('active');
+      setTimeout(() => toast.classList.remove('active'), 3000);
+    }
+
+    // On Load Check
+    window.onload = function() {
+      if (localStorage.getItem('dhkin_admin_session_auth') === 'true') {
+        // Check if database configured first
+        const checkConfigTimer = setInterval(() => {
+          if (currentConfig) {
+            clearInterval(checkConfigTimer);
+            enterDashboard();
+          }
+        }, 150);
+      } else {
+        inputs[0].focus();
+      }
+    }
+  </script>
+</body>
+</html>
