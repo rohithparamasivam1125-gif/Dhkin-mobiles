@@ -17,6 +17,7 @@ import '../../models/category_model.dart';
 import 'warranty_search.dart';
 import '../stock_search_screen.dart';
 import '../owner/enquiry_management_screen.dart';
+import '../owner/customer_contacts_screen.dart';
 import '../../widgets/shimmer.dart';
 
 class EmployeeHomeScreen extends StatefulWidget {
@@ -272,6 +273,32 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                         Icon(Icons.mark_as_unread_rounded, color: Colors.teal, size: 18),
                         SizedBox(width: 6),
                         Text('Enquiries', style: TextStyle(color: Colors.teal, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Card(
+                elevation: 0,
+                color: Colors.indigo.withOpacity(0.08),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.indigo.withOpacity(0.2)),
+                ),
+                child: InkWell(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CustomerContactsScreen(isOwner: false, shopId: shopId))),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.contact_phone_outlined, color: Colors.indigo, size: 18),
+                        SizedBox(width: 6),
+                        Text('Contacts', style: TextStyle(color: Colors.indigo, fontSize: 12, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),

@@ -34,7 +34,14 @@ class ContactItem {
 }
 
 class CustomerContactsScreen extends StatefulWidget {
-  const CustomerContactsScreen({super.key});
+  final bool isOwner;
+  final String? shopId;
+
+  const CustomerContactsScreen({
+    super.key,
+    required this.isOwner,
+    this.shopId,
+  });
 
   @override
   State<CustomerContactsScreen> createState() => _CustomerContactsScreenState();
@@ -82,6 +89,9 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
         _selectedPhones.clear();
       });
     });
+    if (!widget.isOwner && widget.shopId != null) {
+      _selectedShop = widget.shopId!;
+    }
     _loadGroupLink();
     _listenToStreams();
   }
@@ -99,29 +109,33 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
 
   void _loadGroupLink() async {
     final prefs = await SharedPreferences.getInstance();
-    String? savedLink = prefs.getString('whatsapp_group_invite_link');
+    final shopKey = _selectedShop == "All Shops" ? "global" : _selectedShop;
+    String? savedLink = prefs.getString('whatsapp_group_invite_link_$shopKey');
     if (savedLink == null || savedLink.isEmpty) {
-      // Try to fetch from shop GST settings as a default fallback
-      final gstSettings1 = await _db.getGstSettings('Shop 1');
-      if (gstSettings1?.groupLink != null && gstSettings1!.groupLink!.isNotEmpty) {
-        savedLink = gstSettings1.groupLink;
+      if (_selectedShop != "All Shops") {
+        final settings = await _db.getGstSettings(_selectedShop);
+        savedLink = settings?.groupLink;
       } else {
-        final gstSettings2 = await _db.getGstSettings('Shop 2');
-        if (gstSettings2?.groupLink != null && gstSettings2!.groupLink!.isNotEmpty) {
-          savedLink = gstSettings2.groupLink;
+        final gstSettings1 = await _db.getGstSettings('Shop 1');
+        if (gstSettings1?.groupLink != null && gstSettings1!.groupLink!.isNotEmpty) {
+          savedLink = gstSettings1.groupLink;
+        } else {
+          final gstSettings2 = await _db.getGstSettings('Shop 2');
+          if (gstSettings2?.groupLink != null && gstSettings2!.groupLink!.isNotEmpty) {
+            savedLink = gstSettings2.groupLink;
+          }
         }
       }
     }
-    if (savedLink != null) {
-      setState(() {
-        _groupLinkController.text = savedLink!;
-      });
-    }
+    setState(() {
+      _groupLinkController.text = savedLink ?? '';
+    });
   }
 
   void _saveGroupLink(String value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('whatsapp_group_invite_link', value.trim());
+    final shopKey = _selectedShop == "All Shops" ? "global" : _selectedShop;
+    await prefs.setString('whatsapp_group_invite_link_$shopKey', value.trim());
   }
 
   void _listenToStreams() {
@@ -581,7 +595,7 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
                 // Shop & Source Filters
                 Row(
                   children: [
-                    // Shop Dropdown
+                    // Shop Dropdown (visible to both owner and employees)
                     Expanded(
                       flex: 4,
                       child: DropdownButtonFormField<String>(
@@ -603,6 +617,7 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
                               _selectedShop = val;
                               _selectedPhones.clear();
                             });
+                            _loadGroupLink(); // Update WhatsApp link to match selected shop settings
                           }
                         },
                       ),

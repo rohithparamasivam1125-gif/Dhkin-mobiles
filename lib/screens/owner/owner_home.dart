@@ -311,7 +311,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const SalesReportsScreen()));
                   }),
                   _buildDrawerTile(Icons.contact_phone_outlined, 'Customer Numbers', Colors.teal, () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerContactsScreen()));
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerContactsScreen(isOwner: true)));
                   }),
                   _buildDrawerTile(Icons.security_outlined, 'Security Settings', Colors.teal, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()));
