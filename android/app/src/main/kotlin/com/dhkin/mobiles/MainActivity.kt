@@ -1,6 +1,6 @@
 package com.dhkin.mobiles
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.content.Intent
@@ -11,7 +11,7 @@ import android.media.RingtoneManager
 import android.media.ToneGenerator
 import android.media.AudioManager
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "com.dhkin_mobiles.share/whatsapp"
     private val SOUND_CHANNEL = "com.dhkin_mobiles.sound/play"
 

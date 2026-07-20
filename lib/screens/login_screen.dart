@@ -7,6 +7,7 @@ import '../../utils/shop_helper.dart';
 import 'owner/owner_home.dart';
 import 'sales/employee_home.dart';
 import '../../services/security_service.dart';
+import '../../services/biometric_service.dart';
 import '../../widgets/pattern_lock_widget.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -50,17 +51,28 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showOwnerAuthDialog() async {
     final settings = await SecurityService().getSettings();
     final String lockType = settings['type']!;
+    final bool isBioEnabled = await BiometricService().isBiometricLoginEnabled();
+
+    if (isBioEnabled) {
+      final authenticated = await BiometricService().authenticate();
+      if (authenticated) {
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OwnerHomeScreen()));
+        }
+        return;
+      }
+    }
     
     if (mounted) {
       if (lockType == 'pin') {
-        _showPinDialog();
+        _showPinDialog(isBioEnabled);
       } else {
-        _showPatternDialog();
+        _showPatternDialog(isBioEnabled);
       }
     }
   }
 
-  void _showPinDialog() {
+  void _showPinDialog(bool isBioEnabled) {
     String currentPin = "";
     bool isError = false;
 
@@ -132,7 +144,26 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: const InputDecoration(counterText: ""),
                       ),
                     ),
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL', style: TextStyle(color: Colors.white70))),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('CANCEL', style: TextStyle(color: Colors.white70)),
+                        ),
+                        if (isBioEnabled)
+                          IconButton(
+                            icon: const Icon(Icons.fingerprint, color: AppTheme.primaryIvory, size: 28),
+                            onPressed: () async {
+                              final authenticated = await BiometricService().authenticate();
+                              if (authenticated && mounted) {
+                                Navigator.pop(context);
+                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OwnerHomeScreen()));
+                              }
+                            },
+                          ),
+                      ],
+                    ),
                 ],
               ),
             );
@@ -142,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ).then((_) => _pinController.clear());
   }
 
-  void _showPatternDialog() {
+  void _showPatternDialog(bool isBioEnabled) {
     bool isError = false;
     showDialog(
       context: context,
@@ -173,7 +204,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL', style: TextStyle(color: Colors.white70))),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('CANCEL', style: TextStyle(color: Colors.white70)),
+                  ),
+                  if (isBioEnabled)
+                    IconButton(
+                      icon: const Icon(Icons.fingerprint, color: Colors.white, size: 28),
+                      onPressed: () async {
+                        final authenticated = await BiometricService().authenticate();
+                        if (authenticated && mounted) {
+                          Navigator.pop(context);
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OwnerHomeScreen()));
+                        }
+                      },
+                    ),
+                ],
+              ),
             ],
           ),
         ),

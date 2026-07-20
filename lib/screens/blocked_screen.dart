@@ -7,6 +7,8 @@ class BlockedScreen extends StatefulWidget {
   final String message;
   final IconData icon;
   final Color color;
+  final VoidCallback? onActionButtonPressed;
+  final String? actionButtonText;
 
   const BlockedScreen({
     super.key,
@@ -14,6 +16,8 @@ class BlockedScreen extends StatefulWidget {
     required this.message,
     required this.icon,
     required this.color,
+    this.onActionButtonPressed,
+    this.actionButtonText,
   });
 
   @override
@@ -183,6 +187,27 @@ class _BlockedScreenState extends State<BlockedScreen> with SingleTickerProvider
                               ),
                               textAlign: TextAlign.center,
                             ),
+                            if (widget.onActionButtonPressed != null && widget.actionButtonText != null) ...[
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: widget.onActionButtonPressed,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: widget.color,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(double.infinity, 50),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  widget.actionButtonText!.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

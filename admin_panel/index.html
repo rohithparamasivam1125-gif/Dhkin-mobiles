@@ -662,6 +662,30 @@
         </div>
       </div>
 
+      <!-- App Version Control -->
+      <div class="config-card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="card-icon passcode-icon" style="background: rgba(46, 117, 204, 0.15); color: #2e75cc;">🔄</div>
+            <h2>App Version Control</h2>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div class="field-group">
+            <label for="minVersionCode">Required Build Code</label>
+            <input type="number" id="minVersionCode" class="single-input" placeholder="e.g. 1" style="font-size: 14px; padding: 12px; letter-spacing: 0;">
+          </div>
+          <div class="field-group">
+            <label for="minVersionName">Required Version Name</label>
+            <input type="text" id="minVersionName" class="single-input" placeholder="e.g. 1.0.0" style="font-size: 14px; padding: 12px; letter-spacing: 0;">
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="updateUrl">Update Download Link (URL)</label>
+          <input type="text" id="updateUrl" class="single-input" placeholder="https://..." style="font-size: 13px; padding: 12px; letter-spacing: 0;">
+        </div>
+      </div>
+
       <!-- Footer Buttons -->
       <div class="action-panel-footer">
         <button class="logout-btn" onclick="logoutAdmin()">LOCK</button>
@@ -751,7 +775,10 @@
         maintenanceMessage: "D&H Mobiles is currently undergoing scheduled maintenance. Please check back later.",
         isBlocked: false,
         blockedMessage: "Access suspended. Please contact the developer to resolve payment and restore service.",
-        adminPasscode: "9988"
+        adminPasscode: "9988",
+        minVersionCode: 1,
+        minVersionName: "1.0.0",
+        updateUrl: "https://example.com/update"
       };
       
       docRef.set(defaults)
@@ -773,6 +800,10 @@
       document.getElementById('blockToggle').checked = currentConfig.isBlocked || false;
       document.getElementById('blockMessage').value = currentConfig.blockedMessage || "";
       document.getElementById('newPasscode').value = ""; // clear passcode input field
+
+      document.getElementById('minVersionCode').value = currentConfig.minVersionCode || 1;
+      document.getElementById('minVersionName').value = currentConfig.minVersionName || "1.0.0";
+      document.getElementById('updateUrl').value = currentConfig.updateUrl || "https://example.com/update";
     }
 
     // Verify code
@@ -852,6 +883,9 @@
         maintenanceMessage: document.getElementById('maintenanceMessage').value,
         isBlocked: document.getElementById('blockToggle').checked,
         blockedMessage: document.getElementById('blockMessage').value,
+        minVersionCode: parseInt(document.getElementById('minVersionCode').value) || 1,
+        minVersionName: document.getElementById('minVersionName').value.trim() || "1.0.0",
+        updateUrl: document.getElementById('updateUrl').value.trim() || "https://example.com/update",
       };
 
       // Check if new password is input

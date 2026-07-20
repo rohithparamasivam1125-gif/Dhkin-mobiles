@@ -66,5 +66,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>D&amp;H Mobiles requests Face ID permission to allow secure Owner login.</string>
 </dict>
 </plist>

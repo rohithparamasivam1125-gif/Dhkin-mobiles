@@ -8,6 +8,10 @@ import 'services/notification_service.dart';
 
 import 'services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+const int kCurrentVersionCode = 1;
+const String kCurrentVersionName = '1.0.0';
 
 void main() async {
   try {
@@ -98,6 +102,33 @@ class AppStatusWrapper extends StatelessWidget {
         final bool isUnderMaintenance = data['isUnderMaintenance'] ?? false;
         final String maintenanceMessage = data['maintenanceMessage'] ??
             'D&H Mobiles is currently undergoing scheduled maintenance. Please check back later.';
+
+        final int minVersionCode = data['minVersionCode'] ?? 1;
+        final String minVersionName = data['minVersionName'] ?? '1.0.0';
+        final String updateUrl = data['updateUrl'] ?? 'https://example.com/update';
+
+        // 1. Check if the app version is outdated
+        if (kCurrentVersionCode < minVersionCode) {
+          return BlockedScreen(
+            title: 'UPDATE REQUIRED',
+            message: 'Your installed app version ($kCurrentVersionName) is no longer supported.\n\nPlease install the latest version ($minVersionName) to continue.',
+            icon: Icons.system_update_alt,
+            color: Colors.blue.shade400,
+            actionButtonText: 'Download Update',
+            onActionButtonPressed: () async {
+              try {
+                final uri = Uri.parse(updateUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  debugPrint('Could not launch update URL: $updateUrl');
+                }
+              } catch (e) {
+                debugPrint('Error launching update URL: $e');
+              }
+            },
+          );
+        }
 
         if (isBlocked) {
           return BlockedScreen(
