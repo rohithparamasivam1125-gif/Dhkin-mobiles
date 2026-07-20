@@ -29,6 +29,7 @@ import '../../models/category_model.dart';
 import '../sales/warranty_search.dart';
 import '../stock_search_screen.dart';
 import 'enquiry_management_screen.dart';
+import 'customer_contacts_screen.dart';
 import '../../utils/shop_helper.dart';
 import '../../utils/sound_helper.dart';
 import '../../widgets/shimmer.dart';
@@ -308,6 +309,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
                   }),
                   _buildDrawerTile(Icons.analytics_outlined, 'Sales Reports', Colors.indigo, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const SalesReportsScreen()));
+                  }),
+                  _buildDrawerTile(Icons.contact_phone_outlined, 'Customer Numbers', Colors.teal, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerContactsScreen()));
                   }),
                   _buildDrawerTile(Icons.security_outlined, 'Security Settings', Colors.teal, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()));

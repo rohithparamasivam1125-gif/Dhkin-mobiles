@@ -11,6 +11,7 @@ import '../models/specialist_fee_request_model.dart';
 import '../models/enquiry_model.dart';
 import '../models/gst_settings_model.dart';
 import '../models/product_order_model.dart';
+import '../models/phone_book_contact_model.dart';
 import 'dart:async';
 
 class DatabaseService {
@@ -1379,5 +1380,46 @@ class DatabaseService {
         await doc.reference.delete();
       }
     }
+  }
+
+  // Phone Book Operations
+  Future<void> addPhoneBookContact(PhoneBookContact contact) async {
+    await _db.collection('phone_book').doc(contact.id).set(contact.toMap());
+  }
+
+  Stream<List<PhoneBookContact>> getPhoneBookContacts() {
+    return _db.collection('phone_book')
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) => PhoneBookContact.fromMap(doc.data())).toList();
+          list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return list;
+        });
+  }
+
+  Future<void> deletePhoneBookContact(String id) async {
+    await _db.collection('phone_book').doc(id).delete();
+  }
+
+  // WhatsApp Added Numbers Operations
+  Stream<Set<String>> getAddedWhatsAppNumbers() {
+    return _db.collection('whatsapp_added_numbers')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.id).toSet());
+  }
+
+  Future<void> markMultipleAsAdded(List<String> phones, bool isAdded) async {
+    final batch = _db.batch();
+    for (var phone in phones) {
+      final docRef = _db.collection('whatsapp_added_numbers').doc(phone);
+      if (isAdded) {
+        batch.set(docRef, {
+          'addedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        batch.delete(docRef);
+      }
+    }
+    await batch.commit();
   }
 }
