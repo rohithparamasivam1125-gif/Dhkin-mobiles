@@ -2126,14 +2126,12 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                     onChanged: (val) => setState(() {}),
                   ),
                   const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  Row(
                     children: [
                       const Text('Parts Mode: ',
                           style:
                               TextStyle(fontSize: 12, color: Colors.black54)),
+                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('Cash'),
                         selected: partsPaymentMode == 'Cash',
@@ -2141,6 +2139,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                           if (val) setState(() => partsPaymentMode = 'Cash');
                         },
                       ),
+                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('Online'),
                         selected: partsPaymentMode == 'Online',
@@ -2159,14 +2158,12 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                     onChanged: (val) => setState(() {}),
                   ),
                   const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  Row(
                     children: [
                       const Text('Tech Fee Mode: ',
                           style:
                               TextStyle(fontSize: 12, color: Colors.black54)),
+                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('Cash'),
                         selected: feePaymentMode == 'Cash',
@@ -2174,6 +2171,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                           if (val) setState(() => feePaymentMode = 'Cash');
                         },
                       ),
+                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('Online'),
                         selected: feePaymentMode == 'Online',
@@ -3225,14 +3223,12 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  Row(
                     children: [
                       const Text('Parts Mode: ',
                           style:
                               TextStyle(fontSize: 12, color: Colors.black54)),
+                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('Cash'),
                         selected: partsPaymentMode == 'Cash',
@@ -3240,6 +3236,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                           if (val) setState(() => partsPaymentMode = 'Cash');
                         },
                       ),
+                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('Online'),
                         selected: partsPaymentMode == 'Online',
@@ -3257,14 +3254,12 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  Row(
                     children: [
                       const Text('Tech Fee Mode: ',
                           style:
                               TextStyle(fontSize: 12, color: Colors.black54)),
+                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('Cash'),
                         selected: feePaymentMode == 'Cash',
@@ -3272,6 +3267,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                           if (val) setState(() => feePaymentMode = 'Cash');
                         },
                       ),
+                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('Online'),
                         selected: feePaymentMode == 'Online',
