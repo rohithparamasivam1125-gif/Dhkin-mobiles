@@ -369,20 +369,29 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
   }
 
   // Mark selected contacts as Added/Pending in Firestore
-  Future<void> _markSelectedStatus(bool isAdded) async {
+  Future<void> _markSelectedStatus(bool isAdded, {bool copy = false}) async {
     if (_selectedPhones.isEmpty) return;
+
+    if (copy) {
+      // Sort selected numbers to make the copied output clean
+      final copyList = _selectedPhones.toList()..sort();
+      final csv = copyList.join(", ");
+      await Clipboard.setData(ClipboardData(text: csv));
+    }
 
     setState(() => _isLoading = true);
     try {
-      await _db.markMultipleAsAdded(_selectedPhones.toList(), isAdded);
       final count = _selectedPhones.length;
+      await _db.markMultipleAsAdded(_selectedPhones.toList(), isAdded);
       setState(() {
         _selectedPhones.clear();
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Marked $count contacts as ${isAdded ? 'Added' : 'Pending'}!"),
+            content: Text(copy
+                ? "$count numbers copied & marked as ${isAdded ? 'Added' : 'Pending'}!"
+                : "Marked $count contacts as ${isAdded ? 'Added' : 'Pending'}!"),
             backgroundColor: AppTheme.accentForest,
           ),
         );
@@ -902,9 +911,9 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      onPressed: () => _markSelectedStatus(_tabController.index != 1),
+                      onPressed: () => _markSelectedStatus(_tabController.index != 1, copy: true),
                       child: Text(
-                        _tabController.index == 1 ? 'Mark Pending' : 'Mark Added',
+                        _tabController.index == 1 ? 'Copy & Mark Pending' : 'Copy & Mark Added',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
