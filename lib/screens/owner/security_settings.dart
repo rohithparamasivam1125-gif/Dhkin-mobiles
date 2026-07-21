@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import '../../utils/app_theme.dart';
 import '../../services/security_service.dart';
 import '../../services/biometric_service.dart';
@@ -22,7 +23,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
   int _dbMinVersionCode = 1;
   String _dbMinVersionName = '1.0.0';
-  String _dbUpdateUrl = 'https://example.com/update';
+  String _dbUpdateUrl = 'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk';
+  int _gitLatestVersionCode = kCurrentVersionCode;
 
   @override
   void initState() {
@@ -46,7 +48,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
         setState(() {
           _dbMinVersionCode = data['minVersionCode'] ?? 1;
           _dbMinVersionName = data['minVersionName'] ?? '1.0.0';
-          _dbUpdateUrl = data['updateUrl'] ?? 'https://example.com/update';
+          _dbUpdateUrl = data['updateUrl'] ?? 'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk';
         });
       }
     } catch (e) {
@@ -58,6 +60,34 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
       _biometricAvailable = isAvailable;
       _biometricEnabled = isEnabled;
     });
+
+    // Fetch latest version code from GitHub in the background
+    _fetchLatestGitVersion().then((code) {
+      if (mounted) {
+        setState(() {
+          _gitLatestVersionCode = code;
+        });
+      }
+    });
+  }
+
+  Future<int> _fetchLatestGitVersion() async {
+    try {
+      final response = await http.get(Uri.parse(
+        'https://raw.githubusercontent.com/rohithparamasivam1125-gif/Dhkin-mobiles/main/pubspec.yaml'
+      )).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final content = response.body;
+        final regExp = RegExp(r'version:\s*\d+\.\d+\.\d+\+(\d+)');
+        final match = regExp.firstMatch(content);
+        if (match != null) {
+          return int.tryParse(match.group(1)!) ?? kCurrentVersionCode;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching latest git version: $e');
+    }
+    return kCurrentVersionCode;
   }
 
   @override
@@ -436,14 +466,15 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 return;
               }
 
-              // Owner Lockout protection - STRICT BLOCK
-              if (newCode > kCurrentVersionCode) {
+              // Owner Lockout protection - STRICT BLOCK (Allows only up to the latest compiled Git version)
+              final maxAllowed = _gitLatestVersionCode;
+              if (newCode > maxAllowed) {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text('Action Blocked: Lockout Risk'),
                     content: Text(
-                      'You cannot set the minimum required version (Build $newCode) higher than your current app version (Build $kCurrentVersionCode).\n\nDoing this would immediately lock you out of this device. Please build and install the new version of the app first.',
+                      'You cannot set the minimum required version (Build $newCode) higher than the latest version compiled on GitHub (Build $maxAllowed).\n\nDoing this would cause a permanent lockout. Please set it to $maxAllowed or lower.',
                     ),
                     actions: [
                       TextButton(
