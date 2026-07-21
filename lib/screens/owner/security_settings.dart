@@ -436,26 +436,24 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 return;
               }
 
-              // Owner Lockout protection
+              // Owner Lockout protection - STRICT BLOCK
               if (newCode > kCurrentVersionCode) {
-                final confirm = await showDialog<bool>(
+                showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Warning: Lockout Threat'),
+                    title: const Text('Action Blocked: Lockout Risk'),
                     content: Text(
-                      'Setting the required version higher than your current version (Build $kCurrentVersionCode) will lock you out of this device as well.\n\nAre you sure you want to proceed?',
+                      'You cannot set the minimum required version (Build $newCode) higher than your current app version (Build $kCurrentVersionCode).\n\nDoing this would immediately lock you out of this device. Please build and install the new version of the app first.',
                     ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No, Cancel')),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                        child: const Text('Yes, Lock Device'),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
                       ),
                     ],
                   ),
                 );
-                if (confirm != true) return;
+                return;
               }
 
               final navigator = Navigator.of(context);
@@ -466,11 +464,11 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 await FirebaseFirestore.instance
                     .collection('system_config')
                     .doc('app_status')
-                    .update({
+                    .set({
                   'minVersionCode': newCode,
                   'minVersionName': newName,
                   'updateUrl': newUrl,
-                });
+                }, SetOptions(merge: true));
 
                 setState(() {
                   _dbMinVersionCode = newCode;
