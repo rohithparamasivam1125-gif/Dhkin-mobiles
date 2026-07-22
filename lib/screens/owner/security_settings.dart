@@ -326,36 +326,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
               ],
             ),
 
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('APK Download Link:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      try {
-                        final uri = Uri.parse(_dbUpdateUrl);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      } catch (e) {
-                        debugPrint('Could not launch update URL: $e');
-                      }
-                    },
-                    child: Text(
-                      _dbUpdateUrl,
-                      style: const TextStyle(color: Colors.blue, fontSize: 12, decoration: TextDecoration.underline),
-                      textAlign: TextAlign.end,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
