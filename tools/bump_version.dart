@@ -50,9 +50,8 @@ Future<void> main() async {
   final minor = int.parse(match.group(2)!);
   final patch = int.parse(match.group(3)!);
   final currentBuild = int.parse(match.group(4)!);
-
-  final targetBuild = dbMinBuildCode ?? currentBuild;
-  final targetVersionName = dbMinVersionName ?? '$major.$minor.$patch';
+  final targetBuild = (dbMinBuildCode != null && dbMinBuildCode > currentBuild) ? dbMinBuildCode! : currentBuild;
+  final targetVersionName = '$major.$minor.$patch';
   final newVersion = '$targetVersionName+$targetBuild';
   
   print('Syncing app version to Database Target: $newVersion (Build $targetBuild)');
