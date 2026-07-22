@@ -325,14 +325,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 Text('Build $kCurrentVersionCode', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Required Build Number:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                Text('Build $_dbMinVersionCode', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              ],
-            ),
+
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
