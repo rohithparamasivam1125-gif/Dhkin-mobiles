@@ -322,7 +322,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Installed Build Number:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                Text('Build $kCurrentVersionCode ($kCurrentVersionName)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text('Build $kCurrentVersionCode', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 8),
