@@ -53,21 +53,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final String lockType = settings['type']!;
     final bool isBioEnabled = await BiometricService().isBiometricLoginEnabled();
 
-    if (isBioEnabled) {
-      final authenticated = await BiometricService().authenticate();
-      if (authenticated) {
-        if (mounted) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OwnerHomeScreen()));
-        }
-        return;
-      }
-    }
-    
     if (mounted) {
       if (lockType == 'pin') {
         _showPinDialog(isBioEnabled);
       } else {
         _showPatternDialog(isBioEnabled);
+      }
+    }
+
+    if (isBioEnabled) {
+      final authenticated = await BiometricService().authenticate();
+      if (authenticated && mounted) {
+        Navigator.pop(context);
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OwnerHomeScreen()));
       }
     }
   }
@@ -82,18 +80,16 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            void handlePinChange(String value) async {
-              if (value.length > 4) {
-                _pinController.text = value.substring(0, 4);
-                return;
-              }
+            void handlePinDigit(String digit) async {
+              if (currentPin.length >= 4) return;
+              final newPin = currentPin + digit;
               setModalState(() {
-                currentPin = value;
+                currentPin = newPin;
                 isError = false;
               });
 
-              if (value.length == 4) {
-                final isValid = await SecurityService().verify(value);
+              if (newPin.length == 4) {
+                final isValid = await SecurityService().verify(newPin);
                 if (isValid) {
                   if (mounted) {
                     Navigator.pop(context);
@@ -103,9 +99,17 @@ class _LoginScreenState extends State<LoginScreen> {
                   setModalState(() {
                     isError = true;
                     currentPin = "";
-                    _pinController.clear();
                   });
                 }
+              }
+            }
+
+            void handleBackspace() {
+              if (currentPin.isNotEmpty) {
+                setModalState(() {
+                  currentPin = currentPin.substring(0, currentPin.length - 1);
+                  isError = false;
+                });
               }
             }
 
@@ -113,64 +117,144 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                   const Icon(Icons.lock_person_outlined, color: AppTheme.primaryIvory, size: 40),
-                    const SizedBox(height: 16),
-                    const Text('ENTER PIN', style: TextStyle(color: AppTheme.primaryIvory, letterSpacing: 2, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(4, (index) {
-                        bool isFilled = index < currentPin.length;
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 10),
-                          width: 16, height: 16,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isError ? Colors.red : (isFilled ? AppTheme.primaryIvory : Colors.white10),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      height: 0, width: 0,
-                      child: TextField(
-                        controller: _pinController,
-                        focusNode: _pinFocusNode,
-                        autofocus: true,
-                        keyboardType: TextInputType.number,
-                        onChanged: handlePinChange,
-                        maxLength: 4,
-                        decoration: const InputDecoration(counterText: ""),
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('CANCEL', style: TextStyle(color: Colors.white70)),
+                  const Icon(Icons.lock_person_outlined, color: AppTheme.primaryIvory, size: 40),
+                  const SizedBox(height: 12),
+                  const Text('ENTER PIN', style: TextStyle(color: AppTheme.primaryIvory, letterSpacing: 2, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (index) {
+                      bool isFilled = index < currentPin.length;
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        width: 16, height: 16,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isError ? Colors.red : (isFilled ? AppTheme.primaryIvory : Colors.white10),
                         ),
-                        if (isBioEnabled)
-                          IconButton(
-                            icon: const Icon(Icons.fingerprint, color: AppTheme.primaryIvory, size: 28),
-                            onPressed: () async {
-                              final authenticated = await BiometricService().authenticate();
-                              if (authenticated && mounted) {
-                                Navigator.pop(context);
-                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OwnerHomeScreen()));
-                              }
-                            },
-                          ),
-                      ],
-                    ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 24),
+                  // Fast Custom On-Screen Keypad for zero keyboard lag
+                  _buildCustomKeypad(handlePinDigit, handleBackspace),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('CANCEL', style: TextStyle(color: Colors.white70)),
+                      ),
+                      if (isBioEnabled)
+                        IconButton(
+                          icon: const Icon(Icons.fingerprint, color: AppTheme.primaryIvory, size: 28),
+                          onPressed: () async {
+                            final authenticated = await BiometricService().authenticate();
+                            if (authenticated && mounted) {
+                              Navigator.pop(context);
+                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OwnerHomeScreen()));
+                            }
+                          },
+                        ),
+                    ],
+                  ),
                 ],
               ),
             );
           },
         );
       },
-    ).then((_) => _pinController.clear());
+    );
+  }
+
+  Widget _buildCustomKeypad(Function(String) onDigitTap, VoidCallback onDeleteTap) {
+    return Column(
+      children: [
+        for (var row in [
+          ['1', '2', '3'],
+          ['4', '5', '6'],
+          ['7', '8', '9'],
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: row.map((digit) {
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => onDigitTap(digit),
+                    borderRadius: BorderRadius.circular(28),
+                    child: Container(
+                      width: 54,
+                      height: 54,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withOpacity(0.08),
+                        border: Border.all(color: Colors.white24, width: 1),
+                      ),
+                      child: Text(
+                        digit,
+                        style: const TextStyle(
+                          color: AppTheme.primaryIvory,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            const SizedBox(width: 54, height: 54),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => onDigitTap('0'),
+                borderRadius: BorderRadius.circular(28),
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.08),
+                    border: Border.all(color: Colors.white24, width: 1),
+                  ),
+                  child: const Text(
+                    '0',
+                    style: TextStyle(
+                      color: AppTheme.primaryIvory,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onDeleteTap,
+                borderRadius: BorderRadius.circular(28),
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.backspace_outlined, color: AppTheme.primaryIvory, size: 22),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   void _showPatternDialog(bool isBioEnabled) {
