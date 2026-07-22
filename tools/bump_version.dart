@@ -80,7 +80,23 @@ Future<void> main() async {
   } else {
     print('Warning: lib/main.dart not found.');
   }
-  
+
+  // Update latestVersionCode & latestVersionName in Firestore so Owner gets the sweet alert popup!
+  try {
+    await http.patch(
+      Uri.parse('https://firestore.googleapis.com/v1/projects/dhkin-mobiles/databases/(default)/documents/system_config/app_status?updateMask.fieldPaths=latestVersionCode&updateMask.fieldPaths=latestVersionName'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'fields': {
+          'latestVersionCode': {'integerValue': targetBuild.toString()},
+          'latestVersionName': {'stringValue': targetVersionName},
+        }
+      }),
+    );
+    print('Updated latestVersionCode in Firestore DB to Build $targetBuild.');
+  } catch (e) {
+    print('Notice: Could not patch latestVersionCode in Firestore ($e).');
+  }
+
   print('Version sync completed successfully.');
 }
-
