@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../utils/app_theme.dart';
 import '../../services/security_service.dart';
 import '../../services/biometric_service.dart';
@@ -330,6 +331,36 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
               children: [
                 const Text('Required Min Version:', style: TextStyle(color: Colors.grey, fontSize: 13)),
                 Text('$_dbMinVersionName (Build $_dbMinVersionCode)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('APK Download Link:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      try {
+                        final uri = Uri.parse(_dbUpdateUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      } catch (e) {
+                        debugPrint('Could not launch update URL: $e');
+                      }
+                    },
+                    child: Text(
+                      _dbUpdateUrl,
+                      style: const TextStyle(color: Colors.blue, fontSize: 12, decoration: TextDecoration.underline),
+                      textAlign: TextAlign.end,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),

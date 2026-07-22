@@ -10,8 +10,8 @@ import 'services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const int kCurrentVersionCode = 6;
-const String kCurrentVersionName = '1.0.3';
+const int kCurrentVersionCode = 1;
+const String kCurrentVersionName = '1.0.1';
 
 void main() async {
   try {
