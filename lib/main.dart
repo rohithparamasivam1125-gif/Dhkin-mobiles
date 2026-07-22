@@ -10,8 +10,8 @@ import 'services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const int kCurrentVersionCode = 7;
-const String kCurrentVersionName = '1.0.7';
+const int kCurrentVersionCode = 6;
+const String kCurrentVersionName = '1.0.3';
 
 void main() async {
   try {
@@ -481,6 +481,19 @@ class AppStatusWrapper extends StatelessWidget {
         final bool isUnderMaintenance = data['isUnderMaintenance'] ?? false;
         final String maintenanceMessage = data['maintenanceMessage'] ??
             'D&H Mobiles is currently undergoing scheduled maintenance. Please check back later.';
+
+        final int minVersionCode = data['minVersionCode'] ?? 1;
+        final String minVersionName = data['minVersionName'] ?? '1.0.1';
+
+        // 1. Check if the app version is outdated
+        if (kCurrentVersionCode < minVersionCode) {
+          return BlockedScreen(
+            title: 'UPDATE REQUIRED',
+            message: 'Your installed app version ($kCurrentVersionName) is no longer supported.\n\nPlease contact the owner or download the latest update to continue.',
+            icon: Icons.system_update_alt,
+            color: Colors.blue.shade400,
+          );
+        }
 
         if (isBlocked) {
           return BlockedScreen(

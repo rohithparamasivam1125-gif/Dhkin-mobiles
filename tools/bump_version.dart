@@ -1,6 +1,35 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
-void main() {
+Future<void> main() async {
+  print('Fetching target version from Firebase Database...');
+  
+  int? dbMinBuildCode;
+  String? dbMinVersionName;
+
+  try {
+    final response = await http.get(Uri.parse(
+      'https://firestore.googleapis.com/v1/projects/dhkin-mobiles/databases/(default)/documents/system_config/app_status'
+    )).timeout(const Duration(seconds: 5));
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      final fields = json['fields'] as Map<String, dynamic>?;
+      if (fields != null) {
+        if (fields.containsKey('minVersionCode')) {
+          final codeStr = fields['minVersionCode']['integerValue'] ?? fields['minVersionCode']['stringValue'];
+          dbMinBuildCode = int.tryParse(codeStr?.toString() ?? '');
+        }
+        if (fields.containsKey('minVersionName')) {
+          dbMinVersionName = fields['minVersionName']['stringValue'];
+        }
+      }
+    }
+  } catch (e) {
+    print('Warning: Could not fetch from Firestore DB ($e). Falling back to pubspec.yaml.');
+  }
+
   // 1. Read pubspec.yaml
   final pubspecFile = File('pubspec.yaml');
   if (!pubspecFile.existsSync()) {
@@ -20,15 +49,13 @@ void main() {
   final major = int.parse(match.group(1)!);
   final minor = int.parse(match.group(2)!);
   final patch = int.parse(match.group(3)!);
-  final build = int.parse(match.group(4)!);
+  final currentBuild = int.parse(match.group(4)!);
+
+  final targetBuild = dbMinBuildCode ?? currentBuild;
+  final targetVersionName = dbMinVersionName ?? '$major.$minor.$patch';
+  final newVersion = '$targetVersionName+$targetBuild';
   
-  // Increment patch and build code
-  final newPatch = patch + 1;
-  final newBuild = build + 1;
-  final newVersionName = '$major.$minor.$newPatch';
-  final newVersion = '$newVersionName+$newBuild';
-  
-  print('Bumping version: $major.$minor.$patch+$build -> $newVersion');
+  print('Syncing app version to Database Target: $newVersion (Build $targetBuild)');
   
   // Write back to pubspec.yaml
   final newPubspecContent = pubspecContent.replaceFirst(
@@ -45,14 +72,15 @@ void main() {
     final codeRegExp = RegExp(r'const int kCurrentVersionCode = \d+;');
     final nameRegExp = RegExp(r"const String kCurrentVersionName = '[^']+'");
     
-    mainContent = mainContent.replaceFirst(codeRegExp, 'const int kCurrentVersionCode = $newBuild;');
-    mainContent = mainContent.replaceFirst(nameRegExp, "const String kCurrentVersionName = '$newVersionName'");
+    mainContent = mainContent.replaceFirst(codeRegExp, 'const int kCurrentVersionCode = $targetBuild;');
+    mainContent = mainContent.replaceFirst(nameRegExp, "const String kCurrentVersionName = '$targetVersionName'");
     
     mainFile.writeAsStringSync(mainContent);
-    print('Updated lib/main.dart constants.');
+    print('Updated lib/main.dart constants to Build $targetBuild.');
   } else {
     print('Warning: lib/main.dart not found.');
   }
   
-  print('Version bump completed successfully.');
+  print('Version sync completed successfully.');
 }
+
