@@ -147,15 +147,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () async {
+                  // Close dialog immediately to prevent double-tapping / multiple downloads
+                  Navigator.of(context).pop();
                   try {
                     final uri = Uri.parse(updateUrl);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    }
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
                   } catch (e) {
                     debugPrint('Could not launch update URL: $e');
                   }
-                  if (mounted) Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryIvory,

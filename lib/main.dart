@@ -483,16 +483,18 @@ class AppStatusWrapper extends StatelessWidget {
         final String maintenanceMessage = data['maintenanceMessage'] ??
             'D&H Mobiles is currently undergoing scheduled maintenance. Please check back later.';
 
-        final int minVersionCode = data['minVersionCode'] ?? 1;
-        final String minVersionName = data['minVersionName'] ?? '1.0.1';
+        final dynamic rawMinCode = data['minVersionCode'];
+        final int minVersionCode = (rawMinCode is int)
+            ? rawMinCode
+            : (int.tryParse(rawMinCode?.toString() ?? '1') ?? 1);
 
-        // 1. Check if the app version is outdated
+        // 1. Check if the app version is outdated (INSTANT BLOCK)
         if (kCurrentVersionCode < minVersionCode) {
           return BlockedScreen(
             title: 'UPDATE REQUIRED',
-            message: 'Your installed app version ($kCurrentVersionName) is no longer supported.\n\nPlease contact the owner or download the latest update to continue.',
+            message: 'Your installed app (Build $kCurrentVersionCode) is no longer supported.\n\nPlease contact the owner for the new app version to continue.',
             icon: Icons.system_update_alt,
-            color: Colors.blue.shade400,
+            color: Colors.red.shade700,
           );
         }
 
