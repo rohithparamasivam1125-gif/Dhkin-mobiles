@@ -321,16 +321,16 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Installed Local Version:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                Text('$kCurrentVersionName (Build $kCurrentVersionCode)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const Text('Installed Build Number:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text('Build $kCurrentVersionCode ($kCurrentVersionName)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Required Min Version:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                Text('$_dbMinVersionName (Build $_dbMinVersionCode)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const Text('Required Build Number:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text('Build $_dbMinVersionCode', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
               ],
             ),
             const SizedBox(height: 8),
@@ -373,7 +373,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                   side: const BorderSide(color: AppTheme.accentForest),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Text('CONFIGURE REQUIRED VERSION'),
+                child: const Text('CONFIGURE REQUIRED BUILD NUMBER'),
               ),
             ),
           ],
@@ -384,18 +384,17 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
   void _showConfigureVersionDialog() {
     final codeController = TextEditingController(text: _dbMinVersionCode.toString());
-    final nameController = TextEditingController(text: _dbMinVersionName);
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Configure Minimum Version'),
+        title: const Text('Configure Build Number'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Require devices to run a specific minimum version. Older versions will be blocked.',
+                'Require devices to run a specific build number. Devices running lower build numbers will be blocked.',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 16),
@@ -403,17 +402,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 controller: codeController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Minimum Build Version Code',
+                  labelText: 'Build Number',
                   hintText: 'e.g. 1',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Minimum Version Name',
-                  hintText: 'e.g. 1.0.1',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -428,14 +418,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
           ElevatedButton(
             onPressed: () async {
               final newCode = int.tryParse(codeController.text) ?? 1;
-              final newName = nameController.text.trim();
-
-              if (newName.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a version name')),
-                );
-                return;
-              }
 
               final navigator = Navigator.of(context);
               final messenger = ScaffoldMessenger.of(context);
@@ -447,21 +429,19 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                     .doc('app_status')
                     .set({
                   'minVersionCode': newCode,
-                  'minVersionName': newName,
                 }, SetOptions(merge: true));
 
                 setState(() {
                   _dbMinVersionCode = newCode;
-                  _dbMinVersionName = newName;
                 });
 
                 navigator.pop();
                 messenger.showSnackBar(
-                  const SnackBar(content: Text('Required app version updated successfully')),
+                  const SnackBar(content: Text('Required build number updated successfully')),
                 );
               } catch (e) {
                 messenger.showSnackBar(
-                  SnackBar(content: Text('Error updating version config: $e')),
+                  SnackBar(content: Text('Error updating build number: $e')),
                 );
               }
             },
