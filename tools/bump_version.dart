@@ -80,15 +80,16 @@ Future<void> main() async {
     print('Warning: lib/main.dart not found.');
   }
 
-  // Update latestVersionCode & latestVersionName in Firestore so Owner gets the sweet alert popup!
+  // Update latestVersionCode, latestVersionName, & updateUrl in Firestore so Owner gets the sweet alert popup!
   try {
     await http.patch(
-      Uri.parse('https://firestore.googleapis.com/v1/projects/dhkin-mobiles/databases/(default)/documents/system_config/app_status?updateMask.fieldPaths=latestVersionCode&updateMask.fieldPaths=latestVersionName'),
+      Uri.parse('https://firestore.googleapis.com/v1/projects/dhkin-mobiles/databases/(default)/documents/system_config/app_status?updateMask.fieldPaths=latestVersionCode&updateMask.fieldPaths=latestVersionName&updateMask.fieldPaths=updateUrl'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'fields': {
           'latestVersionCode': {'integerValue': targetBuild.toString()},
           'latestVersionName': {'stringValue': targetVersionName},
+          'updateUrl': {'stringValue': 'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk'},
         }
       }),
     );
