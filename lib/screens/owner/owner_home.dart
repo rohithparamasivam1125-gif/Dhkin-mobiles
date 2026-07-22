@@ -84,7 +84,10 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
     _checkForDeveloperUpdate();
   }
 
+  static bool _updateDialogShown = false;
+
   void _checkForDeveloperUpdate() async {
+    if (_updateDialogShown) return;
     try {
       final doc = await FirebaseFirestore.instance
           .collection('system_config')
@@ -98,6 +101,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
 
         if (latestVersionCode > kCurrentVersionCode) {
           if (mounted) {
+            _updateDialogShown = true;
             _showUpdateAvailableDialog(latestVersionName, updateUrl);
           }
         }
