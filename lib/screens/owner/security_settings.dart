@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
 import '../../utils/app_theme.dart';
 import '../../services/security_service.dart';
 import '../../services/biometric_service.dart';
 import '../../widgets/pattern_lock_widget.dart';
-import '../../main.dart';
 
 class SecuritySettingsScreen extends StatefulWidget {
   const SecuritySettingsScreen({super.key});
@@ -21,11 +18,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
 
-  int _dbMinVersionCode = 1;
-  String _dbMinVersionName = '1.0.0';
-  String _dbUpdateUrl = 'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk';
-  int _gitLatestVersionCode = kCurrentVersionCode;
-
   @override
   void initState() {
     super.initState();
@@ -36,58 +28,12 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
     final settings = await _securityService.getSettings();
     final isAvailable = await _biometricService.isBiometricsAvailable();
     final isEnabled = await _biometricService.isBiometricLoginEnabled();
-    
-    // Fetch version data from Firestore
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('system_config')
-          .doc('app_status')
-          .get();
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        setState(() {
-          _dbMinVersionCode = data['minVersionCode'] ?? 1;
-          _dbMinVersionName = data['minVersionName'] ?? '1.0.0';
-          _dbUpdateUrl = data['updateUrl'] ?? 'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk';
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading version settings: $e');
-    }
 
     setState(() {
       _currentType = settings['type']!;
       _biometricAvailable = isAvailable;
       _biometricEnabled = isEnabled;
     });
-
-    // Fetch latest version code from GitHub in the background
-    _fetchLatestGitVersion().then((code) {
-      if (mounted) {
-        setState(() {
-          _gitLatestVersionCode = code;
-        });
-      }
-    });
-  }
-
-  Future<int> _fetchLatestGitVersion() async {
-    try {
-      final response = await http.get(Uri.parse(
-        'https://raw.githubusercontent.com/rohithparamasivam1125-gif/Dhkin-mobiles/main/pubspec.yaml'
-      )).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final content = response.body;
-        final regExp = RegExp(r'version:\s*\d+\.\d+\.\d+\+(\d+)');
-        final match = regExp.firstMatch(content);
-        if (match != null) {
-          return int.tryParse(match.group(1)!) ?? kCurrentVersionCode;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching latest git version: $e');
-    }
-    return kCurrentVersionCode;
   }
 
   @override
@@ -103,8 +49,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             _buildTypeToggle(),
             const SizedBox(height: 16),
             _buildBiometricCard(),
-            const SizedBox(height: 16),
-            _buildVersionControlCard(),
             const SizedBox(height: 16),
             _buildUpdateAction(),
           ],
@@ -326,200 +270,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildVersionControlCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.system_update_alt, color: AppTheme.accentForest),
-                const SizedBox(width: 12),
-                const Text(
-                  'App Version Control',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Installed Local Version:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                Text('1.0.0 (Build 1)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Required Min Version:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                Text('$_dbMinVersionName (Build $_dbMinVersionCode)', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Update Link:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    _dbUpdateUrl,
-                    style: const TextStyle(color: Colors.blue, fontSize: 12, decoration: TextDecoration.underline),
-                    textAlign: TextAlign.end,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _showConfigureVersionDialog,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.accentForest,
-                  side: const BorderSide(color: AppTheme.accentForest),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text('CONFIGURE REQUIRED VERSION'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showConfigureVersionDialog() {
-    final codeController = TextEditingController(text: _dbMinVersionCode.toString());
-    final nameController = TextEditingController(text: _dbMinVersionName);
-    final urlController = TextEditingController(text: _dbUpdateUrl);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Configure App Version'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Require devices to run a specific minimum version. Older versions will be blocked.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: codeController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Minimum Build Version Code',
-                  hintText: 'e.g. 1',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Minimum Version Name',
-                  hintText: 'e.g. 1.0.0',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlController,
-                decoration: const InputDecoration(
-                  labelText: 'Update Download URL',
-                  hintText: 'e.g. https://link.to.apk',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newCode = int.tryParse(codeController.text) ?? 1;
-              final newName = nameController.text.trim();
-              final newUrl = urlController.text.trim();
-
-              if (newName.isEmpty || newUrl.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please fill all fields')),
-                );
-                return;
-              }
-
-              // Owner Lockout protection - STRICT BLOCK (Allows only up to the latest compiled Git version)
-              final maxAllowed = _gitLatestVersionCode;
-              if (newCode > maxAllowed) {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Action Blocked: Lockout Risk'),
-                    content: Text(
-                      'You cannot set the minimum required version (Build $newCode) higher than the latest version compiled on GitHub (Build $maxAllowed).\n\nDoing this would cause a permanent lockout. Please set it to $maxAllowed or lower.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('OK'),
-                      ),
-                    ],
-                  ),
-                );
-                return;
-              }
-
-              final navigator = Navigator.of(context);
-              final messenger = ScaffoldMessenger.of(context);
-
-              // Update Firestore
-              try {
-                await FirebaseFirestore.instance
-                    .collection('system_config')
-                    .doc('app_status')
-                    .set({
-                  'minVersionCode': newCode,
-                  'minVersionName': newName,
-                  'updateUrl': newUrl,
-                }, SetOptions(merge: true));
-
-                setState(() {
-                  _dbMinVersionCode = newCode;
-                  _dbMinVersionName = newName;
-                  _dbUpdateUrl = newUrl;
-                });
-
-                navigator.pop();
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('App version configuration updated successfully')),
-                );
-              } catch (e) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text('Error updating version config: $e')),
-                );
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
