@@ -19,6 +19,7 @@ import '../stock_search_screen.dart';
 import '../owner/enquiry_management_screen.dart';
 import '../owner/customer_contacts_screen.dart';
 import '../../widgets/shimmer.dart';
+import '../../utils/app_update_helper.dart';
 
 class EmployeeHomeScreen extends StatefulWidget {
   final String shopId;
@@ -44,6 +45,9 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     super.initState();
     _salesStream = DatabaseService().getSales(widget.shopId);
     _servicesStream = DatabaseService().getServices(widget.shopId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateHelper.checkAndShowUpdateDialog(context);
+    });
   }
 
   @override

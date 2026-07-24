@@ -86,6 +86,12 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
 
     if (service.status == 'Completed') {
       if (service.remainingAmount == 0) {
+        if (service.advanceAmount > 0 && service.advanceAmount < service.totalAmount) {
+          buffer.writeln('💵 *Initial Advance Paid:* ₹${service.advanceAmount.toStringAsFixed(0)}');
+          buffer.writeln('💵 *Balance Paid at Collection:* ₹${(service.totalAmount - service.advanceAmount).toStringAsFixed(0)}');
+        } else {
+          buffer.writeln('💵 *Amount Paid:* ₹${service.totalAmount.toStringAsFixed(0)}');
+        }
         buffer.writeln('🟢 *Payment Status:* FULLY PAID');
       } else {
         buffer.writeln('💵 *Advance Paid:* ₹${service.advanceAmount.toStringAsFixed(0)}');
@@ -94,11 +100,17 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
         buffer.writeln('🔴 *Please pay the remaining balance of ₹${service.remainingAmount.toStringAsFixed(0)} during collection.*');
       }
     } else {
-      buffer.writeln('💵 *Advance Paid:* ₹${service.advanceAmount.toStringAsFixed(0)}');
-      if (service.remainingAmount > 0) {
-        buffer.writeln('🔴 *Remaining Balance:* ₹${service.remainingAmount.toStringAsFixed(0)}');
-      } else {
+      if (service.remainingAmount == 0) {
+        if (service.advanceAmount > 0 && service.advanceAmount < service.totalAmount) {
+          buffer.writeln('💵 *Initial Advance Paid:* ₹${service.advanceAmount.toStringAsFixed(0)}');
+          buffer.writeln('💵 *Balance Paid at Delivery:* ₹${(service.totalAmount - service.advanceAmount).toStringAsFixed(0)}');
+        } else {
+          buffer.writeln('💵 *Amount Paid:* ₹${service.totalAmount.toStringAsFixed(0)}');
+        }
         buffer.writeln('🟢 *Remaining Balance:* ₹0 (Fully Settled)');
+      } else {
+        buffer.writeln('💵 *Advance Paid:* ₹${service.advanceAmount.toStringAsFixed(0)}');
+        buffer.writeln('🔴 *Remaining Balance:* ₹${service.remainingAmount.toStringAsFixed(0)}');
       }
     }
 
@@ -117,7 +129,19 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
     buffer.writeln('----------------------------------------');
     buffer.writeln('Thank you! 🙏');
 
-    _launchWhatsApp(service.customerPhone, buffer.toString());
+    final settings = _gstSettings ??
+        GstSettingsModel(
+          shopId: service.shopId,
+          shopName: ShopHelper.getDisplayName(service.shopId),
+          gstNumber: 'N/A',
+          address: 'Store Address',
+          contactNumber: 'Phone',
+          email: '',
+          cgstRate: 9.0,
+          sgstRate: 9.0,
+        );
+
+    PdfInvoiceHelper.shareServiceInvoicePdf(service, settings, textMessage: buffer.toString());
   }
 
   Future<void> _loadGstSettings() async {

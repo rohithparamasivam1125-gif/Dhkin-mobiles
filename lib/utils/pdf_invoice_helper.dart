@@ -19,6 +19,7 @@ class PdfInvoiceHelper {
     // Load fonts
     final fontR = await PdfGoogleFonts.notoSansRegular();
     final fontB = await PdfGoogleFonts.notoSansBold();
+    final fontTamil = await PdfGoogleFonts.tiroTamilRegular();
 
     // Decode logo
     pw.Widget? logoWidget;
@@ -48,6 +49,7 @@ class PdfInvoiceHelper {
         theme: pw.ThemeData.withFont(
           base: fontR,
           bold: fontB,
+          fontFallback: [fontTamil],
         ),
         build: (pw.Context context) {
           final dateStr = DateFormat('dd-MM-yyyy hh:mm a').format(sale.timestamp);
@@ -324,7 +326,7 @@ class PdfInvoiceHelper {
     );
   }
 
-  static Future<void> shareInvoicePdf(SaleModel sale, GstSettingsModel gstSettings) async {
+  static Future<void> shareInvoicePdf(SaleModel sale, GstSettingsModel gstSettings, {String? textMessage}) async {
     final pdf = await buildInvoiceDocument(sale, gstSettings);
     final bytes = await pdf.save();
     final dir = await getTemporaryDirectory();
@@ -337,6 +339,7 @@ class PdfInvoiceHelper {
         sharedDirectly = await _shareChannel.invokeMethod('sharePdfDirect', {
           'phone': sale.customerPhone,
           'filePath': file.path,
+          'textMessage': textMessage ?? '',
         });
       }
     } catch (_) {
@@ -347,6 +350,7 @@ class PdfInvoiceHelper {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'application/pdf')],
+          text: textMessage,
           subject: 'Invoice - ${gstSettings.shopName}',
         ),
       );
@@ -368,6 +372,7 @@ class PdfInvoiceHelper {
     
     final fontR = await PdfGoogleFonts.notoSansRegular();
     final fontB = await PdfGoogleFonts.notoSansBold();
+    final fontTamil = await PdfGoogleFonts.tiroTamilRegular();
 
     pw.Widget? logoWidget;
     if (gstSettings.logoBase64 != null && gstSettings.logoBase64!.isNotEmpty) {
@@ -396,6 +401,7 @@ class PdfInvoiceHelper {
         theme: pw.ThemeData.withFont(
           base: fontR,
           bold: fontB,
+          fontFallback: [fontTamil],
         ),
         build: (pw.Context context) {
           final dateStr = DateFormat('dd-MM-yyyy hh:mm a').format(service.timestamp);
@@ -694,7 +700,7 @@ class PdfInvoiceHelper {
     );
   }
 
-  static Future<void> shareServiceInvoicePdf(ServiceModel service, GstSettingsModel gstSettings) async {
+  static Future<void> shareServiceInvoicePdf(ServiceModel service, GstSettingsModel gstSettings, {String? textMessage}) async {
     final pdf = await buildServiceInvoiceDocument(service, gstSettings);
     final bytes = await pdf.save();
     final dir = await getTemporaryDirectory();
@@ -707,6 +713,7 @@ class PdfInvoiceHelper {
         sharedDirectly = await _shareChannel.invokeMethod('sharePdfDirect', {
           'phone': service.customerPhone,
           'filePath': file.path,
+          'textMessage': textMessage ?? '',
         });
       }
     } catch (_) {
@@ -717,6 +724,7 @@ class PdfInvoiceHelper {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'application/pdf')],
+          text: textMessage,
           subject: 'Service Invoice - ${gstSettings.shopName}',
         ),
       );

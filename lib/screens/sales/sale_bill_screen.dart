@@ -1174,21 +1174,17 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                   onPressed: () async {
                     Navigator.pop(dialogContext); // close dialog
                     Navigator.pop(context); // close billing screen
-                    if (sale.isGstBill) {
-                      final settings = _gstSettings ?? GstSettingsModel(
-                        shopId: sale.shopId,
-                        shopName: ShopHelper.getDisplayName(sale.shopId),
-                        gstNumber: 'N/A',
-                        address: 'Store Address',
-                        contactNumber: 'Phone',
-                        email: '',
-                        cgstRate: 9.0,
-                        sgstRate: 9.0,
-                      );
-                      await PdfInvoiceHelper.shareInvoicePdf(sale, settings);
-                    } else {
-                      _launchWhatsApp(sale.customerPhone, message);
-                    }
+                    final settings = _gstSettings ?? GstSettingsModel(
+                      shopId: sale.shopId,
+                      shopName: ShopHelper.getDisplayName(sale.shopId),
+                      gstNumber: 'N/A',
+                      address: 'Store Address',
+                      contactNumber: 'Phone',
+                      email: '',
+                      cgstRate: 9.0,
+                      sgstRate: 9.0,
+                    );
+                    await PdfInvoiceHelper.shareInvoicePdf(sale, settings, textMessage: message);
                   },
                 ),
                 ElevatedButton.icon(

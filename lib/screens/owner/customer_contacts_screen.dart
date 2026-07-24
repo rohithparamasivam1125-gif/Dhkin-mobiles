@@ -495,15 +495,17 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
     );
   }
 
-  // Delete manual contact from phone book (with confirmation)
+  // Delete manual contact or remove from added list (with confirmation)
   void _confirmDeletePhoneBook(ContactItem item) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: AppTheme.primaryIvory,
-          title: const Text('Delete Contact'),
-          content: Text('Are you sure you want to delete "${item.name}" from your Phone Book?'),
+          title: const Text('Delete / Remove Contact'),
+          content: Text(item.source == "Phone Book" 
+              ? 'Are you sure you want to delete "${item.name}" from your Phone Book?' 
+              : 'Are you sure you want to remove "${item.name}" from the Added list?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -513,10 +515,58 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
               onPressed: () async {
                 Navigator.pop(context);
                 setState(() => _isLoading = true);
-                await _db.deletePhoneBookContact(item.id);
-                setState(() => _isLoading = false);
+                if (item.source == "Phone Book") {
+                  await _db.deletePhoneBookContact(item.id);
+                }
+                await _db.markMultipleAsAdded([item.normalizedPhone], false);
+                setState(() {
+                  _selectedPhones.remove(item.normalizedPhone);
+                  _isLoading = false;
+                });
               },
-              child: const Text('DELETE', style: TextStyle(color: Colors.red)),
+              child: const Text('REMOVE', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteSelected() {
+    if (_selectedPhones.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppTheme.primaryIvory,
+          title: const Text('Remove Selected Numbers'),
+          content: Text('Are you sure you want to remove ${_selectedPhones.length} selected contacts from the Added list?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                final phonesToRemove = _selectedPhones.toList();
+                setState(() => _isLoading = true);
+                
+                // Delete any phone book entries among selected
+                for (var phone in phonesToRemove) {
+                  final match = _phoneBook.firstWhere((p) => _normalizePhone(p.phone) == phone, orElse: () => PhoneBookContact(id: '', name: '', phone: '', notes: '', timestamp: DateTime.now()));
+                  if (match.id.isNotEmpty) {
+                    await _db.deletePhoneBookContact(match.id);
+                  }
+                }
+                
+                await _db.markMultipleAsAdded(phonesToRemove, false);
+                setState(() {
+                  _selectedPhones.clear();
+                  _isLoading = false;
+                });
+              },
+              child: const Text('REMOVE ALL', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -854,13 +904,12 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
                                     tooltip: 'Invite via WhatsApp',
                                     onPressed: () => _launchWhatsAppInvite(item.phone, item.name),
                                   ),
-                                  // Delete if from phone book
-                                  if (item.source == "Phone Book")
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                                      tooltip: 'Delete Contact',
-                                      onPressed: () => _confirmDeletePhoneBook(item),
-                                    ),
+                                  // Delete / Remove Contact button
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                    tooltip: 'Delete / Remove Contact',
+                                    onPressed: () => _confirmDeletePhoneBook(item),
+                                  ),
                                 ],
                               ),
                             ),
@@ -895,7 +944,14 @@ class _CustomerContactsScreenState extends State<CustomerContactsScreen>
                       tooltip: 'Copy Selected Numbers',
                       onPressed: _copySelected,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
+                    // Action: Delete Selected Numbers
+                    IconButton(
+                      icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
+                      tooltip: 'Remove Selected Numbers',
+                      onPressed: _confirmDeleteSelected,
+                    ),
+                    const SizedBox(width: 4),
                     // Action: Export CSV
                     IconButton(
                       icon: const Icon(Icons.file_download, color: AppTheme.primaryIvory),

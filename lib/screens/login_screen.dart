@@ -9,6 +9,7 @@ import 'sales/employee_home.dart';
 import '../../services/security_service.dart';
 import '../../services/biometric_service.dart';
 import '../../widgets/pattern_lock_widget.dart';
+import '../../utils/app_update_helper.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,6 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _checkDeviceType();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdateHelper.checkAndShowUpdateDialog(context);
+    });
   }
 
   @override

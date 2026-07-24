@@ -23,8 +23,9 @@ class MainActivity : FlutterFragmentActivity() {
             if (call.method == "sharePdfDirect") {
                 val phone = call.argument<String>("phone")
                 val filePath = call.argument<String>("filePath")
+                val textMessage = call.argument<String>("textMessage")
                 if (phone != null && filePath != null) {
-                    val shared = sharePdfToWhatsApp(phone, filePath)
+                    val shared = sharePdfToWhatsApp(phone, filePath, textMessage)
                     result.success(shared)
                 } else {
                     result.error("INVALID_ARGUMENTS", "Phone or File Path was null", null)
@@ -71,7 +72,8 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
-    private fun sharePdfToWhatsApp(phone: String, filePath: String): Boolean {
+    private fun sharePdfToWhatsApp(phone: String, filePath: String, textMessage: String?): Boolean {
+        val captionText = if (!textMessage.isNullOrBlank()) textMessage else "🧾 DHKIN MOBILES - Invoice"
         return try {
             val file = File(filePath)
             if (!file.exists()) return false
@@ -94,7 +96,7 @@ class MainActivity : FlutterFragmentActivity() {
                 type = "application/pdf"
                 putExtra(Intent.EXTRA_STREAM, fileUri)
                 putExtra("jid", "$cleanPhone@s.whatsapp.net")
-                putExtra(Intent.EXTRA_TEXT, "🧾 DHKIN MOBILES - Invoice")
+                putExtra(Intent.EXTRA_TEXT, captionText)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 `package` = "com.whatsapp"
             }
@@ -121,7 +123,7 @@ class MainActivity : FlutterFragmentActivity() {
                     type = "application/pdf"
                     putExtra(Intent.EXTRA_STREAM, fileUri)
                     putExtra("jid", "$cleanPhone@s.whatsapp.net")
-                    putExtra(Intent.EXTRA_TEXT, "🧾 DHKIN MOBILES - Invoice")
+                    putExtra(Intent.EXTRA_TEXT, captionText)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     `package` = "com.whatsapp.w4b"
                 }
