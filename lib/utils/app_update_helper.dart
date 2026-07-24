@@ -16,7 +16,10 @@ class AppUpdateHelper {
 
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
-        final int latestVersionCode = data['latestVersionCode'] ?? 1;
+        final dynamic rawLatestCode = data['latestVersionCode'];
+        final int latestVersionCode = (rawLatestCode is int)
+            ? rawLatestCode
+            : (int.tryParse(rawLatestCode?.toString() ?? '1') ?? 1);
         final String latestVersionName = data['latestVersionName'] ?? '1.0.1';
         final String updateUrl = data['updateUrl'] ??
             'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk';

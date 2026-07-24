@@ -1824,7 +1824,6 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
 
                         final updated = service.copyWith(
                           status: 'Delivered',
-                          advanceAmount: newAdvance,
                           remainingAmount: 0.0,
                           cashAmount: newCash,
                           onlineAmount: newOnline,

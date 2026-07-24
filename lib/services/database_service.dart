@@ -331,7 +331,6 @@ class DatabaseService {
     // NOTE: Status is intentionally NOT changed here.
     // Payment progress and repair status are tracked independently.
     await _db.collection('services').doc(serviceId).update({
-      'advanceAmount': newAdvance,
       'remainingAmount': (totalAmount - newAdvance).clamp(0.0, double.infinity),
       'cashAmount': FieldValue.increment(cashPaid),
       'onlineAmount': FieldValue.increment(onlinePaid),

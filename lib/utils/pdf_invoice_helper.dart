@@ -568,7 +568,7 @@ class PdfInvoiceHelper {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('\uD83C\uDF81 Complimentary Item(s)',
+                      pw.Text('Complimentary Item(s)',
                           style: pw.TextStyle(
                               fontSize: 9,
                               fontWeight: pw.FontWeight.bold,
@@ -662,9 +662,27 @@ class PdfInvoiceHelper {
                           padding: const pw.EdgeInsets.symmetric(vertical: 4),
                           child: pw.Divider(thickness: 0.5, color: PdfColors.grey300),
                         ),
-                        _buildSummaryRow('Advance Paid:', 'Rs.${service.advanceAmount.toStringAsFixed(2)}', fontR, secondaryColor),
-                        pw.SizedBox(height: 4),
-                        _buildSummaryRow('Balance Due:', 'Rs.${service.remainingAmount.toStringAsFixed(2)}', fontB, PdfColors.red800),
+                        if (service.remainingAmount == 0) ...[
+                          if (service.advanceAmount > 0 && service.advanceAmount < service.totalAmount) ...[
+                            _buildSummaryRow('Initial Advance Paid:', 'Rs.${service.advanceAmount.toStringAsFixed(2)}', fontR, secondaryColor),
+                            pw.SizedBox(height: 4),
+                            _buildSummaryRow('Paid at Delivery:', 'Rs.${(service.totalAmount - service.advanceAmount).toStringAsFixed(2)}', fontR, secondaryColor),
+                            pw.SizedBox(height: 4),
+                            _buildSummaryRow('Balance Due:', 'Rs.0.00 (Settled)', fontB, secondaryColor),
+                          ] else if (service.advanceAmount == 0) ...[
+                            _buildSummaryRow('Paid at Delivery:', 'Rs.${service.totalAmount.toStringAsFixed(2)}', fontR, secondaryColor),
+                            pw.SizedBox(height: 4),
+                            _buildSummaryRow('Balance Due:', 'Rs.0.00 (Settled)', fontB, secondaryColor),
+                          ] else ...[
+                            _buildSummaryRow('Advance Paid:', 'Rs.${service.advanceAmount.toStringAsFixed(2)}', fontR, secondaryColor),
+                            pw.SizedBox(height: 4),
+                            _buildSummaryRow('Balance Due:', 'Rs.0.00 (Settled)', fontB, secondaryColor),
+                          ],
+                        ] else ...[
+                          _buildSummaryRow('Advance Paid:', 'Rs.${service.advanceAmount.toStringAsFixed(2)}', fontR, secondaryColor),
+                          pw.SizedBox(height: 4),
+                          _buildSummaryRow('Balance Due:', 'Rs.${service.remainingAmount.toStringAsFixed(2)}', fontB, service.remainingAmount > 0 ? PdfColors.red800 : secondaryColor),
+                        ],
                       ],
                     ),
                   ),
