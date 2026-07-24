@@ -3,6 +3,7 @@ import '../../models/product_model.dart';
 import '../../services/database_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/shop_helper.dart';
+import '../../utils/sound_helper.dart';
 
 class StockSearchScreen extends StatefulWidget {
   final String? shopId; // If null, defaults to Shop 1 and allows toggling for Owner
@@ -183,137 +184,154 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                       final bool isOutOfStock = product.units == 0;
 
                       return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Product Name and Stock Units
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      product.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                        color: AppTheme.charcoalBlack,
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => _showUpdateStockDialog(context, product),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Product Name and Stock Units
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              product.name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                color: AppTheme.charcoalBlack,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          const Icon(
+                                            Icons.edit_note_rounded,
+                                            size: 20,
+                                            color: AppTheme.accentForest,
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: isOutOfStock
-                                          ? Colors.red.withValues(alpha: 0.1)
-                                          : (isLowStock
-                                              ? Colors.orange.withValues(alpha: 0.1)
-                                              : Colors.green.withValues(alpha: 0.1)),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      isOutOfStock
-                                          ? 'Out of Stock'
-                                          : '${product.units} Units',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
                                         color: isOutOfStock
-                                            ? Colors.red
-                                            : (isLowStock ? Colors.orange : Colors.green),
+                                            ? Colors.red.withValues(alpha: 0.1)
+                                            : (isLowStock
+                                                ? Colors.orange.withValues(alpha: 0.1)
+                                                : Colors.green.withValues(alpha: 0.1)),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        isOutOfStock
+                                            ? 'Out of Stock'
+                                            : '${product.units} Units',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isOutOfStock
+                                              ? Colors.red
+                                              : (isLowStock ? Colors.orange : Colors.green),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              
-                              // Category
-                              Text(
-                                product.category.toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.graphiteGray,
-                                  letterSpacing: 0.5,
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              
-                              // Divider and Details
-                              const Divider(height: 1, color: Colors.black12),
-                              const SizedBox(height: 12),
-                              
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  // Location info (Tray/Shelf)
-                                  if (product.location.isNotEmpty)
-                                    Row(
+                                const SizedBox(height: 8),
+                                
+                                // Category
+                                Text(
+                                  product.category.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.graphiteGray,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                
+                                // Divider and Details
+                                const Divider(height: 1, color: Colors.black12),
+                                const SizedBox(height: 12),
+                                
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Location info (Tray/Shelf)
+                                    if (product.location.isNotEmpty)
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.location_on_outlined, size: 18, color: AppTheme.accentForest),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            product.location,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.accentForest,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    else
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.location_off_outlined, size: 18, color: Colors.grey),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'No Location Set',
+                                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                                          ),
+                                        ],
+                                      ),
+
+                                    // Price Display
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
-                                        const Icon(Icons.location_on_outlined, size: 18, color: AppTheme.accentForest),
-                                        const SizedBox(width: 4),
                                         Text(
-                                          product.location,
+                                          'SP: \u20B9${product.price.toStringAsFixed(0)}',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: AppTheme.accentForest,
-                                            fontSize: 14,
+                                            fontSize: 15,
                                           ),
                                         ),
-                                      ],
-                                    )
-                                  else
-                                    const Row(
-                                      children: [
-                                        Icon(Icons.location_off_outlined, size: 18, color: Colors.grey),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'No Location Set',
-                                          style: TextStyle(color: Colors.grey, fontSize: 13),
-                                        ),
+                                        if (widget.isOwner && product.costPrice > 0) ...[
+                                          Text(
+                                            'CP: \u20B9${product.costPrice.toStringAsFixed(0)}',
+                                            style: const TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Margin: \u20B9${(product.price - product.costPrice).toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: (product.price - product.costPrice) >= 0
+                                                  ? Colors.green
+                                                  : Colors.red,
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
-
-                                  // Price Display
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        'SP: \u20B9${product.price.toStringAsFixed(0)}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: AppTheme.accentForest,
-                                          fontSize: 15,
-                                        ),
-                                      ),
-                                      if (widget.isOwner && product.costPrice > 0) ...[
-                                        Text(
-                                          'CP: \u20B9${product.costPrice.toStringAsFixed(0)}',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Margin: \u20B9${(product.price - product.costPrice).toStringAsFixed(0)}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: (product.price - product.costPrice) >= 0
-                                                ? Colors.green
-                                                : Colors.red,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -324,6 +342,256 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showUpdateStockDialog(BuildContext context, ProductModel product) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: product.name);
+    final priceController = TextEditingController(text: product.price.toStringAsFixed(0));
+    final costPriceController = TextEditingController(
+      text: product.costPrice > 0 ? product.costPrice.toStringAsFixed(0) : '',
+    );
+    final addQtyController = TextEditingController();
+    final totalUnitsController = TextEditingController(text: product.units.toString());
+    final locationController = TextEditingController(text: product.location);
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final int currentStock = product.units;
+          final int addQty = int.tryParse(addQtyController.text.trim()) ?? 0;
+          final int calculatedTotal = currentStock + addQty;
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.inventory_2_outlined, color: AppTheme.accentForest),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Re-Stock / Edit: ${product.name}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(labelText: 'Product Name *'),
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: priceController,
+                      decoration: const InputDecoration(labelText: 'Selling Price *', prefixText: '\u20B9 '),
+                      keyboardType: TextInputType.number,
+                      validator: (val) => (val == null || double.tryParse(val) == null) ? 'Invalid price' : null,
+                    ),
+                    if (widget.isOwner) ...[
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: costPriceController,
+                        decoration: const InputDecoration(
+                          labelText: 'Purchase / Cost Price *',
+                          prefixText: '\u20B9 ',
+                          helperText: 'What you paid to buy this item',
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (val) => (val == null || double.tryParse(val) == null) ? 'Invalid cost price' : null,
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+
+                    // Stock Management & Re-Stocking Section
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentForest.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.accentForest.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Current Available Stock:',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accentForest,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$currentStock Units',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: addQtyController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: '+ Add New Quantity (Re-Stock)',
+                              hintText: 'e.g. 4',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.add_circle_outline, color: AppTheme.accentForest),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                            onChanged: (val) {
+                              setDialogState(() {
+                                final added = int.tryParse(val.trim()) ?? 0;
+                                totalUnitsController.text = (currentStock + added).toString();
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: totalUnitsController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Final Total Stock Units *',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.inventory, color: AppTheme.accentForest),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                            validator: (val) => (val == null || int.tryParse(val) == null) ? 'Invalid units' : null,
+                          ),
+                          if (addQty > 0) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Calculation: $currentStock current + $addQty new = $calculatedTotal total units',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.accentForest,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: locationController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Location (Optional)',
+                        hintText: 'e.g. Tray 1, Shelf B',
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.isOwner)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                          tooltip: 'Delete Product',
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _confirmDeleteProduct(context, product);
+                          },
+                        ),
+                      const SizedBox(width: 4),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentForest,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () async {
+                          if (!formKey.currentState!.validate()) return;
+                          final costPriceVal = widget.isOwner
+                              ? (double.tryParse(costPriceController.text) ?? product.costPrice)
+                              : product.costPrice;
+                          final updatedUnits = int.parse(totalUnitsController.text);
+                          final updatedProduct = product.copyWith(
+                            name: nameController.text.trim(),
+                            price: double.parse(priceController.text),
+                            costPrice: costPriceVal,
+                            units: updatedUnits,
+                            location: locationController.text.trim(),
+                          );
+                          SoundHelper.playSuccess();
+                          DatabaseService().addProduct(updatedProduct).catchError((e) {
+                            debugPrint('Error saving product changes in background: $e');
+                          });
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Updated "${updatedProduct.name}" to ${updatedProduct.units} units!'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Save Changes'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _confirmDeleteProduct(BuildContext context, ProductModel product) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Product?'),
+        content: Text('Are you sure you want to remove ${product.name}? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              SoundHelper.playSuccess();
+              DatabaseService().deleteProduct(product.id).catchError((e) {
+                debugPrint('Error deleting product: $e');
+              });
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

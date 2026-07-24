@@ -546,91 +546,219 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
   void _showUpdateStockDialog(BuildContext context, ProductModel product) {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: product.name);
-    final priceController = TextEditingController(text: product.price.toString());
-    final costPriceController = TextEditingController(text: product.costPrice > 0 ? product.costPrice.toString() : '');
-    final unitsController = TextEditingController(text: product.units.toString());
+    final priceController = TextEditingController(text: product.price.toStringAsFixed(0));
+    final costPriceController = TextEditingController(
+      text: product.costPrice > 0 ? product.costPrice.toStringAsFixed(0) : '',
+    );
+    final addQtyController = TextEditingController();
+    final totalUnitsController = TextEditingController(text: product.units.toString());
     final locationController = TextEditingController(text: product.location);
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit Product: ${product.name}'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final int currentStock = product.units;
+          final int addQty = int.tryParse(addQtyController.text.trim()) ?? 0;
+          final int calculatedTotal = currentStock + addQty;
+
+          return AlertDialog(
+            title: Row(
               children: [
-                TextFormField(
-                  controller: nameController,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(labelText: 'Product Name *'),
-                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: priceController,
-                  decoration: const InputDecoration(labelText: 'Selling Price *', prefixText: '\u20B9 '),
-                  keyboardType: TextInputType.number,
-                  validator: (val) => (val == null || double.tryParse(val) == null) ? 'Invalid price' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: costPriceController,
-                  decoration: const InputDecoration(labelText: 'Purchase / Cost Price *', prefixText: '\u20B9 ', helperText: 'What you paid to buy this item'),
-                  keyboardType: TextInputType.number,
-                  validator: (val) => (val == null || double.tryParse(val) == null) ? 'Invalid cost price' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: unitsController,
-                  decoration: const InputDecoration(labelText: 'Units *'),
-                  keyboardType: TextInputType.number,
-                  validator: (val) => (val == null || int.tryParse(val) == null) ? 'Invalid units' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: locationController,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'Location (Optional)',
-                    hintText: 'e.g. Tray 1, Shelf B',
-                    prefixIcon: Icon(Icons.location_on_outlined),
+                const Icon(Icons.inventory_2_outlined, color: AppTheme.accentForest),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Edit Product: ${product.name}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.grey),
-            onPressed: () {
-              Navigator.pop(context);
-              _confirmDeleteProduct(context, product);
-            },
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              final updatedProduct = product.copyWith(
-                name: nameController.text,
-                price: double.parse(priceController.text),
-                costPrice: double.parse(costPriceController.text),
-                units: int.parse(unitsController.text),
-                location: locationController.text.trim(),
-              );
-              SoundHelper.playSuccess();
-              DatabaseService().addProduct(updatedProduct).catchError((e) {
-                debugPrint('Error saving product changes in background: $e');
-              });
-              await Future.delayed(const Duration(milliseconds: 500));
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Save Changes'),
-          ),
-        ],
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(labelText: 'Product Name *'),
+                      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: priceController,
+                      decoration: const InputDecoration(labelText: 'Selling Price *', prefixText: '\u20B9 '),
+                      keyboardType: TextInputType.number,
+                      validator: (val) => (val == null || double.tryParse(val) == null) ? 'Invalid price' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: costPriceController,
+                      decoration: const InputDecoration(
+                        labelText: 'Purchase / Cost Price *',
+                        prefixText: '\u20B9 ',
+                        helperText: 'What you paid to buy this item',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (val) => (val == null || double.tryParse(val) == null) ? 'Invalid cost price' : null,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Stock Management & Re-Stocking Section
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentForest.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.accentForest.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Current Available Stock:',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accentForest,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$currentStock Units',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: addQtyController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: '+ Add New Quantity (Re-Stock)',
+                              hintText: 'e.g. 4',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.add_circle_outline, color: AppTheme.accentForest),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                            onChanged: (val) {
+                              setDialogState(() {
+                                final added = int.tryParse(val.trim()) ?? 0;
+                                totalUnitsController.text = (currentStock + added).toString();
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: totalUnitsController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Final Total Stock Units *',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.inventory, color: AppTheme.accentForest),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                            validator: (val) => (val == null || int.tryParse(val) == null) ? 'Invalid units' : null,
+                          ),
+                          if (addQty > 0) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Calculation: $currentStock current + $addQty new = $calculatedTotal total units',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.accentForest,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: locationController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Location (Optional)',
+                        hintText: 'e.g. Tray 1, Shelf B',
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        tooltip: 'Delete Product',
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _confirmDeleteProduct(context, product);
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentForest,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () async {
+                          if (!formKey.currentState!.validate()) return;
+                          final updatedProduct = product.copyWith(
+                            name: nameController.text.trim(),
+                            price: double.parse(priceController.text),
+                            costPrice: double.parse(costPriceController.text),
+                            units: int.parse(totalUnitsController.text),
+                            location: locationController.text.trim(),
+                          );
+                          SoundHelper.playSuccess();
+                          DatabaseService().addProduct(updatedProduct).catchError((e) {
+                            debugPrint('Error saving product changes in background: $e');
+                          });
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Updated "${updatedProduct.name}" to ${updatedProduct.units} units!'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Save Changes'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
