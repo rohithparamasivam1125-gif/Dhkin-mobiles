@@ -213,6 +213,10 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
               _progressVal = (progress / 100.0).clamp(0.0, 1.0);
               _progressStr = '$progress%';
               _statusText = 'Downloading update package...';
+              if (progress >= 99) {
+                _isDownloaded = true;
+                _statusText = 'Ready to install!';
+              }
             });
           } else if (event.status == OtaStatus.INSTALLING) {
             setState(() {
@@ -227,8 +231,8 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
             });
           } else if (event.status == OtaStatus.PERMISSION_NOT_GRANTED_ERROR) {
             setState(() {
-              _isError = true;
-              _errorMessage = 'Permission required: Please allow "Install Unknown Apps" for D&H Mobiles in Android Settings.';
+              _isDownloaded = true;
+              _statusText = 'Permission needed to install';
             });
           } else {
             setState(() {
