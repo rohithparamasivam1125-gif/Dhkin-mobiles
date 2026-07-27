@@ -23,6 +23,7 @@ import 'security_settings.dart';
 import 'gst_settings_screen.dart';
 import 'dealer_claims.dart';
 import 'product_order_list_screen.dart';
+import 'low_stock_reorder_screen.dart';
 import '../../models/expense_model.dart';
 import '../../models/replacement_model.dart';
 import '../../models/category_model.dart';
@@ -50,6 +51,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
 
   final Map<String, String> _profitFilterMode = {};
   final Map<String, DateTimeRange> _profitCustomRange = {};
+  final Set<String> _dismissedProductIds = {};
 
   // ── Real-time state variables (populated by initState subscriptions) ──────
   final Map<String, List<SaleModel>> _salesByShop = {};
@@ -407,6 +409,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
                   _buildDrawerTile(Icons.inventory_2_outlined, 'Stock Management', Colors.purple, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const StockManagementScreen()));
                   }),
+                  _buildDrawerTile(Icons.production_quantity_limits_rounded, 'Low Stock Reorder', Colors.deepOrange, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const LowStockReorderScreen()));
+                  }),
                   _buildDrawerTile(Icons.analytics_outlined, 'Sales Reports', Colors.indigo, () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const SalesReportsScreen()));
                   }),
@@ -531,7 +536,6 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
           _buildWastageApprovals(shopId),
           _buildPendingCostAlerts(shopId),
           const SizedBox(height: 28),
-          _buildSectionHeader('Stock Alerts', Icons.warning_amber_rounded, Colors.red),
           _buildStockAlerts(shopId),
           const SizedBox(height: 28),
           Row(
@@ -1379,33 +1383,272 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
 
   Widget _buildStockAlerts(String shopId) {
     final products = _productsByShop[shopId] ?? [];
-    final lowStockItems = products.where((p) => p.units < 5).toList();
 
-    if (lowStockItems.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('All stock levels are optimal', textAlign: TextAlign.center),
-        ),
-      );
+    // Auto-clean _dismissedProductIds for any product that has been restocked (units >= 2)
+    for (final p in products) {
+      if (p.units >= 2 && _dismissedProductIds.contains(p.id)) {
+        _dismissedProductIds.remove(p.id);
+      }
     }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: lowStockItems.length,
-      itemBuilder: (context, index) {
-        final item = lowStockItems[index];
-        return Card(
-          color: Colors.red.shade50,
-          child: ListTile(
-            leading: const Icon(Icons.warning, color: Colors.red),
-            title: Text(item.name, style: const TextStyle(color: AppTheme.charcoalBlack, fontWeight: FontWeight.bold)),
-            subtitle: Text(item.category, style: const TextStyle(color: Colors.black54)),
-            trailing: Text('${item.units} units', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+    final lowStockItems = products.where((p) => p.units < 2).toList();
+    final unclearedItems = lowStockItems.where((p) => !_dismissedProductIds.contains(p.id)).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Header Row with integrated clean action buttons
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+            const SizedBox(width: 8),
+            const Text('Stock Alerts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            if (unclearedItems.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${unclearedItems.length}',
+                  style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+            ],
+            const Spacer(),
+            if (unclearedItems.isNotEmpty)
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    for (final item in unclearedItems) {
+                      _dismissedProductIds.add(item.id);
+                    }
+                  });
+                  SoundHelper.playSuccess();
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cleaning_services_outlined, size: 14, color: Colors.grey.shade700),
+                      const SizedBox(width: 4),
+                      Text('Clear All', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ),
+            if (unclearedItems.isNotEmpty) const SizedBox(width: 4),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LowStockReorderScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentForest.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Reorder', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.accentForest)),
+                    SizedBox(width: 2),
+                    Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppTheme.accentForest),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Body Content
+        if (lowStockItems.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(
+                child: Text('All stock levels are optimal', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+              ),
+            ),
+          )
+        else if (unclearedItems.isEmpty)
+          // ALL low stock alerts have been cleared from dashboard
+          Card(
+            color: Colors.orange.shade50,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(14.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.orange.shade100, shape: BoxShape.circle),
+                    child: const Icon(Icons.check_circle_outline, color: Colors.orange, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'All Alerts Cleared',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey.shade900),
+                        ),
+                        Text(
+                          '${lowStockItems.length} low stock product(s) available in Low Stock Reorder.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LowStockReorderScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.shopping_cart_outlined, size: 14),
+                    label: const Text('REORDER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentForest,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 18, color: Colors.grey),
+                    tooltip: 'Show alerts again',
+                    onPressed: () {
+                      setState(() {
+                        for (final item in lowStockItems) {
+                          _dismissedProductIds.remove(item.id);
+                        }
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: unclearedItems.length,
+            itemBuilder: (context, index) {
+              final item = unclearedItems[index];
+              return Dismissible(
+                key: Key(item.id),
+                direction: DismissDirection.horizontal,
+                onDismissed: (direction) {
+                  setState(() {
+                    _dismissedProductIds.add(item.id);
+                  });
+                  SoundHelper.playSuccess();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Cleared alert for "${item.name}"'),
+                      duration: const Duration(seconds: 2),
+                      action: SnackBarAction(
+                        label: 'UNDO',
+                        onPressed: () {
+                          setState(() {
+                            _dismissedProductIds.remove(item.id);
+                          });
+                        },
+                      ),
+                    ),
+                  );
+                },
+                background: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade400,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.cleaning_services_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text('Clear Alert', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                secondaryBackground: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade400,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text('Clear Alert', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                      SizedBox(width: 8),
+                      Icon(Icons.cleaning_services_rounded, color: Colors.white, size: 20),
+                    ],
+                  ),
+                ),
+                child: Card(
+                  elevation: 1,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.red.shade200),
+                  ),
+                  color: Colors.red.shade50.withValues(alpha: 0.5),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                    ),
+                    title: Text(item.name, style: const TextStyle(color: AppTheme.charcoalBlack, fontWeight: FontWeight.bold, fontSize: 14)),
+                    subtitle: Text('${item.category} • Swipe to clear', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${item.units} left',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LowStockReorderScreen()),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
           ),
-        );
-      },
+      ],
     );
   }
 

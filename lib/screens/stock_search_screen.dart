@@ -180,7 +180,7 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                     itemCount: filteredProducts.length,
                     itemBuilder: (context, index) {
                       final product = filteredProducts[index];
-                      final bool isLowStock = product.units < 5;
+                      final bool isLowStock = product.units < 2;
                       final bool isOutOfStock = product.units == 0;
 
                       return Card(

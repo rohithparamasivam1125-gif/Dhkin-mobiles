@@ -23,7 +23,7 @@
     }
   },
   "hosting": {
-    "public": "build/web",
+    "public": "admin_panel",
     "ignore": [
       "firebase.json",
       "**/.*",

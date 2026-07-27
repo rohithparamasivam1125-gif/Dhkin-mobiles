@@ -3,8 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>D&H Mobiles - Super Admin Dashboard</title>
+  <title>D&H Mobiles - Super Admin & Stock Portal</title>
   
+  <!-- Force Unregister any stale Flutter Web Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (let name of names) caches.delete(name);
+      });
+    }
+  </script>
+
   <!-- Modern Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +32,7 @@
 
   <style>
     :root {
-      --bg-dark: #0d0f0e;
+      --bg-dark: #090c0a;
       --forest-dark: #0a1f14;
       --forest-mid: #153422;
       --forest-light: #2c6e49;
@@ -25,9 +41,9 @@
       --crimson-glow: #e74c3c;
       --ivory-primary: #fffdf0;
       --ivory-secondary: #f0edcf;
-      --charcoal: #1a1a1a;
-      --card-bg: rgba(26, 26, 26, 0.45);
-      --card-border: rgba(255, 255, 255, 0.08);
+      --charcoal: #141715;
+      --card-bg: rgba(20, 26, 22, 0.85);
+      --card-border: rgba(78, 203, 113, 0.2);
       --font-display: 'Outfit', sans-serif;
       --font-body: 'Plus Jakarta Sans', sans-serif;
     }
@@ -39,51 +55,52 @@
     }
 
     body {
-      background: radial-gradient(circle at 50% 0%, var(--forest-mid) 0%, var(--bg-dark) 80%);
+      background: radial-gradient(circle at 50% 0%, #153422 0%, #090c0a 85%);
       color: var(--ivory-primary);
       font-family: var(--font-body);
       min-height: 100vh;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
       padding: 20px;
       overflow-x: hidden;
     }
 
-    /* Glassmorphic Container */
+    /* Main Container */
     .dashboard-container {
       width: 100%;
-      max-width: 680px;
+      max-width: 1020px;
       background: var(--card-bg);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       border: 1px solid var(--card-border);
       border-radius: 28px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 
-                  0 0 40px rgba(21, 52, 34, 0.25);
-      padding: 40px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65), 
+                  0 0 40px rgba(21, 52, 34, 0.35);
+      padding: 32px;
       position: relative;
       transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      margin-top: 10px;
     }
 
-    /* Header styling */
+    /* Header */
     .header {
       text-align: center;
-      margin-bottom: 35px;
+      margin-bottom: 24px;
     }
 
     .logo-container {
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       display: inline-block;
     }
 
     .admin-logo {
-      width: 76px;
-      height: 76px;
+      width: 72px;
+      height: 72px;
       border-radius: 18px;
       object-fit: cover;
       border: 1px solid rgba(255, 253, 240, 0.2);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.4);
     }
 
     .logo-fallback {
@@ -99,14 +116,13 @@
       font-weight: 800;
       font-size: 24px;
       color: var(--ivory-primary);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
     }
 
     .header h1 {
       font-family: var(--font-display);
       font-weight: 800;
-      font-size: 32px;
-      letter-spacing: 2px;
+      font-size: 28px;
+      letter-spacing: 1.5px;
       color: var(--ivory-primary);
       text-transform: uppercase;
       margin-bottom: 4px;
@@ -125,14 +141,14 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(21, 52, 34, 0.4);
+      background: rgba(21, 52, 34, 0.5);
       padding: 6px 14px;
       border-radius: 20px;
-      border: 1px solid rgba(78, 203, 113, 0.2);
+      border: 1px solid rgba(78, 203, 113, 0.25);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.5px;
-      margin-top: 15px;
+      margin-top: 12px;
     }
 
     .sync-dot {
@@ -149,12 +165,13 @@
       box-shadow: 0 0 8px var(--crimson-glow);
     }
 
-    /* Auth State View */
+    /* STEP 1: AUTH VIEW */
     .auth-view {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 20px;
+      padding: 20px 0;
     }
 
     .auth-view p {
@@ -167,15 +184,15 @@
       display: flex;
       gap: 12px;
       justify-content: center;
-      margin: 15px 0;
+      margin: 10px 0;
     }
 
     .pin-input {
       width: 50px;
       height: 55px;
       background: rgba(255, 255, 255, 0.05);
-      border: 1.5px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
+      border: 1.5px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
       text-align: center;
       font-size: 24px;
       font-weight: 700;
@@ -187,7 +204,7 @@
     .pin-input:focus {
       outline: none;
       border-color: var(--emerald-glow);
-      box-shadow: 0 0 10px rgba(78, 203, 113, 0.2);
+      box-shadow: 0 0 12px rgba(78, 203, 113, 0.3);
       background: rgba(255, 255, 255, 0.08);
     }
 
@@ -203,14 +220,14 @@
       font-size: 14px;
       letter-spacing: 1px;
       cursor: pointer;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(78, 203, 113, 0.3);
     }
 
     .auth-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(21, 52, 34, 0.4);
+      box-shadow: 0 8px 25px rgba(78, 203, 113, 0.3);
       filter: brightness(1.15);
     }
 
@@ -224,322 +241,545 @@
       transition: opacity 0.3s ease;
     }
 
-    /* Dashboard Action Views */
+    /* STEP 2: SHOP SELECTION VIEW */
+    .shop-select-view {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 30px 0;
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    .shop-select-view h2 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--ivory-primary);
+      text-align: center;
+    }
+
+    .shop-select-view p {
+      font-size: 13px;
+      color: rgba(255, 253, 240, 0.6);
+      text-align: center;
+      margin-top: -10px;
+    }
+
+    .shop-cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+      max-width: 600px;
+      margin-top: 10px;
+    }
+
+    .shop-choice-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1.5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 32px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      text-align: center;
+    }
+
+    .shop-choice-card:hover {
+      background: rgba(78, 203, 113, 0.1);
+      border-color: var(--emerald-glow);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(78, 203, 113, 0.2);
+    }
+
+    .shop-icon {
+      font-size: 40px;
+      background: rgba(255, 255, 255, 0.08);
+      width: 70px;
+      height: 70px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shop-choice-card h3 {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--ivory-primary);
+    }
+
+    .shop-choice-card span {
+      font-size: 12px;
+      color: var(--emerald-glow);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* STEP 3: DASHBOARD CONTENT */
     .dashboard-content {
       display: none;
       animation: fadeIn 0.4s ease-out forwards;
     }
 
-    .config-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 20px;
-      padding: 24px;
+    /* Active Shop Lock Header Bar */
+    .active-shop-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, rgba(21, 52, 34, 0.6), rgba(10, 31, 20, 0.6));
+      border: 1px solid rgba(78, 203, 113, 0.3);
+      border-radius: 18px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+    }
+
+    .active-shop-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 17px;
+      color: var(--ivory-primary);
+    }
+
+    .active-shop-tag {
+      background: var(--emerald-glow);
+      color: #090c0a;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 10px;
+      text-transform: uppercase;
+    }
+
+    .switch-shop-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--ivory-primary);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .switch-shop-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Tabs Bar */
+    .nav-tabs {
+      display: flex;
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
       margin-bottom: 24px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px 16px;
+      background: transparent;
+      border: none;
+      color: rgba(255, 253, 240, 0.6);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      border-radius: 12px;
+      cursor: pointer;
       transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
-    .config-card:hover {
-      border-color: rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.04);
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--forest-light), var(--forest-mid));
+      color: var(--ivory-primary);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(78, 203, 113, 0.3);
     }
 
-    .card-header {
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* FORM & INPUT STYLES WITH EXPLICIT DROPDOWN CONTRAST FIX */
+    .form-input, .form-select {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1.5px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      color: #fffdf0 !important;
+      padding: 10px 12px;
+      font-family: var(--font-body);
+      font-size: 13px;
+    }
+
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--emerald-glow);
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    /* CRITICAL DROPDOWN CONTRAST FIX FOR ALL BROWSERS */
+    select.form-select option {
+      background-color: #141815 !important;
+      color: #ffffff !important;
+      font-weight: 600;
+      padding: 10px;
+    }
+
+    /* BATCH CARDS (FORM MODULES) */
+    .batch-form-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(78, 203, 113, 0.25);
+      border-radius: 22px;
+      padding: 24px;
+      margin-bottom: 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .batch-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 18px;
     }
 
-    .card-title {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .card-icon {
-      font-size: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-    }
-
-    .maintenance-icon {
-      background: rgba(230, 126, 34, 0.15);
-      color: var(--amber-glow);
-    }
-
-    .block-icon {
-      background: rgba(231, 76, 60, 0.15);
-      color: var(--crimson-glow);
-    }
-
-    .passcode-icon {
-      background: rgba(78, 203, 113, 0.15);
+    .batch-header h3 {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
       color: var(--emerald-glow);
-    }
-
-    .card-header h2 {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-
-    /* Custom Switch Container */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 28px;
-    }
-
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(255, 255, 255, 0.1);
-      transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
-      border-radius: 34px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 20px;
-      width: 20px;
-      left: 3px;
-      bottom: 3px;
-      background-color: white;
-      transition: .3s cubic-bezier(0.16, 1, 0.3, 1);
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    }
-
-    input:checked + .slider.maintenance {
-      background-color: var(--amber-glow);
-    }
-
-    input:checked + .slider.block {
-      background-color: var(--crimson-glow);
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(22px);
-    }
-
-    /* Inputs and Fields */
-    .field-group {
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 8px;
     }
 
-    .field-group label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+    .batch-header p {
+      font-size: 12px;
       color: rgba(255, 253, 240, 0.5);
     }
 
-    .textarea-input {
-      width: 100%;
-      height: 80px;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1.5px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      color: var(--ivory-primary);
-      padding: 12px;
-      font-family: var(--font-body);
-      font-size: 13px;
-      line-height: 1.5;
-      resize: none;
-      transition: all 0.3s ease;
-    }
-
-    .textarea-input:focus {
-      outline: none;
-      border-color: rgba(255, 255, 255, 0.2);
-      background: rgba(0, 0, 0, 0.3);
-    }
-
-    .single-input {
-      width: 100%;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1.5px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      color: var(--ivory-primary);
-      padding: 14px;
-      font-family: var(--font-display);
-      font-size: 16px;
-      font-weight: bold;
-      letter-spacing: 2px;
-      transition: all 0.3s ease;
-    }
-
-    .single-input:focus {
-      outline: none;
-      border-color: rgba(255, 255, 255, 0.2);
-      background: rgba(0, 0, 0, 0.3);
-    }
-
-    .action-panel-footer {
+    /* Dynamic Form Rows Container */
+    .batch-rows-container {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      margin-top: 32px;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 20px;
     }
 
-    .save-btn {
-      flex: 1;
-      background: linear-gradient(135deg, var(--emerald-glow), #2ecc71);
-      color: var(--charcoal);
-      border: none;
+    .form-row-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
       padding: 16px;
-      border-radius: 14px;
-      font-weight: 800;
-      font-size: 14px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      cursor: pointer;
-      box-shadow: 0 10px 20px rgba(46, 204, 113, 0.15);
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .save-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 28px rgba(46, 204, 113, 0.3);
-      filter: brightness(1.08);
-    }
-
-    .logout-btn {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: rgba(255, 253, 240, 0.7);
-      padding: 16px 24px;
-      border-radius: 14px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .logout-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--ivory-primary);
-      border-color: rgba(255, 255, 255, 0.3);
-    }
-
-    /* Modal dialog */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(10px);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.3s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-card {
-      background: #1c1c1c;
-      border: 1px solid rgba(231, 76, 60, 0.3);
-      border-radius: 24px;
-      padding: 32px;
-      max-width: 400px;
-      width: 100%;
-      text-align: center;
-      transform: scale(0.9);
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .modal-overlay.active .modal-card {
-      transform: scale(1);
-    }
-
-    .modal-icon {
-      font-size: 32px;
-      color: var(--crimson-glow);
-      margin-bottom: 16px;
-    }
-
-    .modal-card h3 {
-      font-family: var(--font-display);
-      font-size: 20px;
-      margin-bottom: 12px;
-      color: var(--ivory-primary);
-    }
-
-    .modal-card p {
-      font-size: 14px;
-      line-height: 1.5;
-      color: rgba(255, 253, 240, 0.7);
-      margin-bottom: 24px;
-    }
-
-    .modal-actions {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1.8fr 1.5fr 1fr 1fr 0.8fr auto;
       gap: 12px;
-    }
-
-    .modal-btn {
-      flex: 1;
-      padding: 12px;
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 13px;
-      cursor: pointer;
-      border: none;
+      align-items: center;
       transition: all 0.2s ease;
     }
 
-    .modal-btn.confirm {
+    .form-row-card:hover {
+      border-color: rgba(78, 203, 113, 0.3);
+      background: rgba(0, 0, 0, 0.45);
+    }
+
+    .cat-form-row-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .field-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field-input-group label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(255, 253, 240, 0.5);
+    }
+
+    .row-actions {
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 2px;
+    }
+
+    .remove-row-btn {
+      background: rgba(231, 76, 60, 0.15);
+      border: 1px solid rgba(231, 76, 60, 0.3);
+      color: var(--crimson-glow);
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .remove-row-btn:hover {
       background: var(--crimson-glow);
       color: white;
     }
 
-    .modal-btn.confirm:hover {
-      filter: brightness(1.15);
+    .batch-actions-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
     }
 
-    .modal-btn.cancel {
-      background: rgba(255,255,255,0.08);
+    .add-row-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       color: var(--ivory-primary);
-      border: 1px solid rgba(255,255,255,0.1);
+      padding: 12px 20px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
     }
 
-    .modal-btn.cancel:hover {
-      background: rgba(255,255,255,0.15);
+    .add-row-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
     }
 
-    /* Notification Banner */
+    .save-batch-btn {
+      background: linear-gradient(135deg, var(--emerald-glow), #2ecc71);
+      color: #090c0a;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(78, 203, 113, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .save-batch-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(78, 203, 113, 0.45);
+    }
+
+    /* Live Stock Search & List Controls */
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 14px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .search-input {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      color: var(--ivory-primary);
+      padding: 10px 16px;
+      font-size: 13px;
+      width: 260px;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--emerald-glow);
+    }
+
+    /* Info Banner */
+    .info-banner {
+      background: rgba(52, 152, 219, 0.12);
+      border: 1px solid rgba(52, 152, 219, 0.3);
+      border-radius: 16px;
+      padding: 14px 18px;
+      color: #70a1ff;
+      font-size: 13px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+    }
+
+    /* Stock Grid */
+    .stock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 16px;
+    }
+
+    .product-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .product-card:hover {
+      border-color: rgba(78, 203, 113, 0.3);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .product-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .product-name {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--ivory-primary);
+    }
+
+    .product-cat {
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 3px 8px;
+      border-radius: 8px;
+      color: rgba(255, 253, 240, 0.6);
+      width: fit-content;
+      margin-top: 2px;
+    }
+
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .price-tag {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--emerald-glow);
+    }
+
+    .cost-price-tag {
+      font-size: 12px;
+      color: rgba(255, 253, 240, 0.5);
+    }
+
+    .stock-counter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px 12px;
+      border-radius: 12px;
+      margin-top: 6px;
+    }
+
+    .units-badge {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .units-badge.low {
+      color: var(--crimson-glow);
+    }
+
+    .unit-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .unit-btn:hover {
+      background: rgba(78, 203, 113, 0.3);
+    }
+
+    .delete-icon-btn {
+      background: transparent;
+      border: none;
+      color: rgba(231, 76, 60, 0.7);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+
+    .delete-icon-btn:hover {
+      color: var(--crimson-glow);
+    }
+
+    /* Category Grid */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 14px;
+    }
+
+    .cat-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Toast */
     .toast {
       position: fixed;
       bottom: 30px;
@@ -552,11 +792,8 @@
       border-radius: 30px;
       font-size: 13px;
       font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 10px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.3s ease;
       z-index: 2000;
       opacity: 0;
     }
@@ -566,27 +803,57 @@
       opacity: 1;
     }
 
-    /* Animations */
-    @keyframes pulse {
-      0% { opacity: 0.6; box-shadow: 0 0 4px var(--emerald-glow); }
-      50% { opacity: 1; box-shadow: 0 0 12px var(--emerald-glow); }
-      100% { opacity: 0.6; box-shadow: 0 0 4px var(--emerald-glow); }
+    /* Config Cards */
+    .config-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 16px;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
     }
 
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-6px); }
-      40%, 80% { transform: translateX(6px); }
+    /* Switch */
+    .switch {
+      position: relative; display: inline-block; width: 46px; height: 26px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(255, 255, 255, 0.15); transition: .3s; border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px;
+      background-color: white; transition: .3s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--emerald-glow); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .logout-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: rgba(255, 253, 240, 0.7);
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,0.08); }
+
+    @media (max-width: 768px) {
+      .form-row-card {
+        grid-template-columns: 1fr 1fr;
+      }
     }
 
-    .shake {
-      animation: shake 0.4s ease-in-out;
-    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
@@ -598,133 +865,205 @@
         <img src="logo.png" alt="DHKIN Logo" class="admin-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
         <div class="logo-fallback" style="display: none;">D&H</div>
       </div>
-      <h1>App Status Control</h1>
-      <p>Super Admin Panel</p>
+      <h1>D&H Mobiles</h1>
+      <p>Live Stock & Super Admin Portal</p>
       <div class="sync-badge">
         <div class="sync-dot" id="syncDot"></div>
-        <span id="syncText">Syncing Database...</span>
+        <span id="syncText">Connecting to Database...</span>
       </div>
     </div>
 
-    <!-- Login Mode -->
+    <!-- STEP 1: LOGIN VIEW -->
     <div class="auth-view" id="authView">
-      <p>Enter your 4-digit Super Admin passcode to modify configurations.</p>
+      <p>Enter 4-digit Super Admin Passcode</p>
       <div class="input-pin-container">
         <input type="password" class="pin-input" maxlength="1" oninput="moveNext(this, 1)" onkeydown="checkBack(event, 1)">
         <input type="password" class="pin-input" maxlength="1" oninput="moveNext(this, 2)" onkeydown="checkBack(event, 2)">
         <input type="password" class="pin-input" maxlength="1" oninput="moveNext(this, 3)" onkeydown="checkBack(event, 3)">
         <input type="password" class="pin-input" maxlength="1" oninput="moveNext(this, 4)" onkeydown="checkBack(event, 4)">
       </div>
-      <div class="auth-error" id="authError">Incorrect Passcode. Try again.</div>
-      <button class="auth-btn" onclick="verifyAdminCode()">AUTHORIZE</button>
+      <div class="auth-error" id="authError">Incorrect Passcode</div>
+      <button class="auth-btn" onclick="verifyAdminCode()">VERIFY PASSCODE</button>
     </div>
 
-    <!-- Admin Panel Mode -->
+    <!-- STEP 2: SHOP SELECTION VIEW -->
+    <div class="shop-select-view" id="shopSelectView">
+      <h2>Select Shop to Manage</h2>
+      <p>Choose your shop to manage stock & categories</p>
+
+      <div class="shop-cards-grid">
+        <div class="shop-choice-card" onclick="selectShop('Shop 1')">
+          <div class="shop-icon">🏪</div>
+          <h3>Dhkin Mobiles</h3>
+          <span>Shop 1</span>
+        </div>
+
+        <div class="shop-choice-card" onclick="selectShop('Shop 2')">
+          <div class="shop-icon">🏪</div>
+          <h3>Handhika Mobiles</h3>
+          <span>Shop 2</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: DASHBOARD CONTENT -->
     <div class="dashboard-content" id="dashboardContent">
+
+      <!-- Active Selected Shop Banner -->
+      <div class="active-shop-bar">
+        <div class="active-shop-title">
+          <span>Active Shop:</span>
+          <span id="activeShopNameDisplay" style="color: var(--emerald-glow);">Dhkin Mobiles</span>
+          <span class="active-shop-tag" id="activeShopTagDisplay">Shop 1</span>
+        </div>
+        <button class="switch-shop-btn" onclick="openShopSelectionPage()">🔄 Switch Shop</button>
+      </div>
       
-      <!-- Maintenance Configuration -->
-      <div class="config-card">
-        <div class="card-header">
-          <div class="card-title">
-            <div class="card-icon maintenance-icon">🔨</div>
-            <h2>Maintenance Mode</h2>
+      <!-- Navigation Tabs -->
+      <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('stockTab', this)">
+          📦 Add & View Stock
+        </button>
+        <button class="tab-btn" onclick="switchTab('categoryTab', this)">
+          🏷️ Categories
+        </button>
+        <button class="tab-btn" onclick="switchTab('configTab', this)">
+          ⚙️ App Controls
+        </button>
+        <button class="logout-btn" style="margin-left: auto;" onclick="logoutAdmin()">🔒 Lock</button>
+      </div>
+
+      <!-- TAB 1: STOCK MANAGEMENT (MULTI-PRODUCT ENTRY FORM ONLY SELECTING CREATED CATEGORIES) -->
+      <div class="tab-pane active" id="stockTab">
+        
+        <!-- BATCH MULTI-PRODUCT ENTRY FORM -->
+        <div class="batch-form-card">
+          <div class="batch-header">
+            <div>
+              <h3>📝 Add Multiple Products at Once</h3>
+              <p>Add 1 or more stock items into <strong id="batchShopLabel" style="color: var(--emerald-glow);">Dhkin Mobiles</strong>. Select categories created in the Categories module!</p>
+            </div>
           </div>
-          <label class="switch">
-            <input type="checkbox" id="maintenanceToggle">
-            <span class="slider maintenance"></span>
-          </label>
+
+          <div class="batch-rows-container" id="stockBatchRowsContainer">
+            <!-- Dynamic product stock rows rendered here -->
+          </div>
+
+          <div class="batch-actions-footer">
+            <button class="add-row-btn" onclick="addStockFormRow()">
+              ＋ Add Another Stock Row
+            </button>
+            
+            <button class="save-batch-btn" onclick="saveAllBatchProducts()">
+              💾 Save All Stock Items
+            </button>
+          </div>
         </div>
-        <div class="field-group">
-          <label for="maintenanceMessage">Screen Message</label>
-          <textarea id="maintenanceMessage" class="textarea-input" placeholder="Type maintenance details here..."></textarea>
+
+        <!-- SEARCH & LIVE STOCK GRID -->
+        <div class="controls-bar">
+          <h3 style="font-family: var(--font-display); font-size: 16px;">Current Stock Inventory</h3>
+          <input type="text" class="search-input" id="stockSearch" placeholder="🔍 Search current stock..." oninput="renderStockList()">
+        </div>
+
+        <div class="stock-grid" id="stockContainer">
+          <!-- Dynamically populated stock items -->
         </div>
       </div>
 
-      <!-- Payment / Suspend Configuration -->
-      <div class="config-card">
-        <div class="card-header">
-          <div class="card-title">
-            <div class="card-icon block-icon">⚠️</div>
-            <h2>Block App Usage</h2>
+      <!-- TAB 2: CATEGORY MANAGEMENT (MULTI-CATEGORY ENTRY MODULE + EXISTING LIST) -->
+      <div class="tab-pane" id="categoryTab">
+        <div class="info-banner">
+          <span>💡</span>
+          <div>
+            <strong>Shared Categories:</strong> Categories added here automatically apply to <strong>both Dhkin Mobiles & Handhika Mobiles</strong>. Create categories here first, then select them when adding stock!
           </div>
-          <label class="switch">
-            <input type="checkbox" id="blockToggle" onchange="handleBlockToggle(this)">
-            <span class="slider block"></span>
-          </label>
         </div>
-        <div class="field-group">
-          <label for="blockMessage">Screen Message (e.g. Unpaid Notice)</label>
-          <textarea id="blockMessage" class="textarea-input" placeholder="Type suspension notice details here..."></textarea>
+
+        <!-- BATCH MULTI-CATEGORY ENTRY MODULE -->
+        <div class="batch-form-card">
+          <div class="batch-header">
+            <div>
+              <h3>🏷️ Add Multiple Categories at Once</h3>
+              <p>Add 1 or more category names (e.g. Back Cover, Charger Adapter, Tempered Glass, Neckband).</p>
+            </div>
+          </div>
+
+          <div class="batch-rows-container" id="categoryBatchRowsContainer">
+            <!-- Dynamic category rows rendered here -->
+          </div>
+
+          <div class="batch-actions-footer">
+            <button class="add-row-btn" onclick="addCategoryFormRow()">
+              ＋ Add Another Category Row
+            </button>
+            
+            <button class="save-batch-btn" onclick="saveAllBatchCategories()">
+              💾 Save All Categories
+            </button>
+          </div>
+        </div>
+
+        <div class="controls-bar">
+          <h3 style="font-family: var(--font-display); font-size: 16px;">Existing Categories List</h3>
+        </div>
+
+        <div class="cat-grid" id="categoryContainer">
+          <!-- Dynamically populated categories -->
         </div>
       </div>
 
-      <!-- Change Security Pin -->
-      <div class="config-card">
-        <div class="card-header">
-          <div class="card-title">
-            <div class="card-icon passcode-icon">🔒</div>
-            <h2>Update Security Passcode</h2>
+      <!-- TAB 3: APP CONFIG & CONTROLS -->
+      <div class="tab-pane" id="configTab">
+        <div class="config-card">
+          <div class="card-header">
+            <h3>🔨 Maintenance Mode</h3>
+            <label class="switch">
+              <input type="checkbox" id="maintenanceToggle">
+              <span class="slider"></span>
+            </label>
           </div>
-        </div>
-        <div class="field-group">
-          <label for="newPasscode">New 4-digit Passcode</label>
-          <input type="password" id="newPasscode" class="single-input" maxlength="4" placeholder="••••" pattern="[0-9]*" inputmode="numeric">
-        </div>
-      </div>
-
-      <!-- App Version Control -->
-      <div class="config-card">
-        <div class="card-header">
-          <div class="card-title">
-            <div class="card-icon passcode-icon" style="background: rgba(46, 117, 204, 0.15); color: #2e75cc;">🔄</div>
-            <h2>App Version Control</h2>
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
           <div class="field-group">
-            <label for="minVersionCode">Required Build Code</label>
-            <input type="number" id="minVersionCode" class="single-input" placeholder="e.g. 1" style="font-size: 14px; padding: 12px; letter-spacing: 0;">
+            <label>Screen Message</label>
+            <input type="text" id="maintenanceMessage" class="form-input" placeholder="Maintenance in progress...">
+          </div>
+        </div>
+
+        <div class="config-card">
+          <div class="card-header">
+            <h3>⚠️ Block App Usage</h3>
+            <label class="switch">
+              <input type="checkbox" id="blockToggle">
+              <span class="slider"></span>
+            </label>
           </div>
           <div class="field-group">
-            <label for="minVersionName">Required Version Name</label>
-            <input type="text" id="minVersionName" class="single-input" placeholder="e.g. 1.0.0" style="font-size: 14px; padding: 12px; letter-spacing: 0;">
+            <label>Screen Message (Unpaid / Suspension Notice)</label>
+            <input type="text" id="blockMessage" class="form-input" placeholder="App access suspended...">
           </div>
         </div>
-        <div class="field-group">
-          <label for="updateUrl">Update Download Link (URL)</label>
-          <input type="text" id="updateUrl" class="single-input" placeholder="https://..." style="font-size: 13px; padding: 12px; letter-spacing: 0;">
-        </div>
-      </div>
 
-      <!-- Footer Buttons -->
-      <div class="action-panel-footer">
-        <button class="logout-btn" onclick="logoutAdmin()">LOCK</button>
-        <button class="save-btn" onclick="saveConfiguration()">Apply Changes</button>
+        <div class="config-card">
+          <h3>🔒 Update Passcode</h3>
+          <div class="field-group" style="margin-top: 10px;">
+            <label>New 4-digit Passcode</label>
+            <input type="password" id="newPasscode" class="form-input" maxlength="4" placeholder="••••">
+          </div>
+        </div>
+
+        <button class="action-btn-primary" style="width: 100%; justify-content: center; padding: 14px; margin-top: 10px;" onclick="saveConfiguration()">
+          Save App Controls
+        </button>
       </div>
 
     </div>
   </div>
 
-  <!-- Safety Confirmation Dialog -->
-  <div class="modal-overlay" id="confirmModal">
-    <div class="modal-card">
-      <div class="modal-icon">🚨</div>
-      <h3>Are you absolutely sure?</h3>
-      <p>Enabling "Block App Usage" will immediately kick out all employees/owners from the mobile application and block access on all active devices. Use this to restrict access if payment is pending.</p>
-      <div class="modal-actions">
-        <button class="modal-btn cancel" onclick="cancelBlockToggle()">NO, CANCEL</button>
-        <button class="modal-btn confirm" onclick="confirmBlockToggle()">YES, BLOCK APP</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Success Toast -->
-  <div class="toast" id="successToast">
-    <span>✓</span> Config saved & synced successfully!
-  </div>
+  <!-- Toast -->
+  <div class="toast" id="successToast">Success!</div>
 
   <script>
-    // Firebase Web configuration retrieved from lib/firebase_options.dart
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDeOkjEsCb7DDHxsNoYZrjQrExyuGzA3Ls",
       authDomain: "dhkin-mobiles.firebaseapp.com",
@@ -735,211 +1074,476 @@
       measurementId: "G-X95CFB14ZS"
     };
 
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    const docRef = db.collection('system_config').doc('app_status');
 
+    let allProducts = [];
+    let allCategories = [];
+    let currentActiveShop = null; // 'Shop 1' or 'Shop 2'
     let currentConfig = null;
-    let autoSaveTimer = null;
-    let pendingBlockState = false;
 
-    // PIN field helper navigation
-    const inputs = document.querySelectorAll('.pin-input');
-    function moveNext(input, idx) {
-      if (input.value.length === 1 && idx < 4) {
-        inputs[idx].focus();
-      }
-    }
-    function checkBack(e, idx) {
-      if (e.key === "Backspace" && idx > 1 && !inputs[idx - 1].value) {
-        inputs[idx - 2].focus();
-      }
-    }
+    // Stock Form Drafting State
+    let stockDraftRows = [
+      { name: '', category: '', price: '', costPrice: '', units: 1 }
+    ];
 
-    // Connect and listen to Firestore
-    docRef.onSnapshot((doc) => {
+    // Category Form Drafting State
+    let categoryDraftRows = [
+      { name: '' }
+    ];
+
+    // Listeners
+    db.collection('products').onSnapshot(snapshot => {
       document.getElementById('syncDot').classList.remove('offline');
       document.getElementById('syncText').textContent = 'Synced Live with Database';
       
-      if (doc.exists) {
-        currentConfig = doc.data();
-        
-        // Auto fill if logged in
-        if (document.getElementById('dashboardContent').style.display === 'block') {
-          updateFormFields();
-        }
-      } else {
-        // Document does not exist. Initialize it with default credentials
-        initializeDefaultConfig();
-      }
-    }, (error) => {
-      console.error("Firestore sync error:", error);
+      allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderStockList();
+    }, err => {
+      console.error(err);
       document.getElementById('syncDot').classList.add('offline');
-      document.getElementById('syncText').textContent = 'Database Offline / Permission Denied';
+      document.getElementById('syncText').textContent = 'Database Sync Error';
     });
 
-    function initializeDefaultConfig() {
-      const defaults = {
-        isUnderMaintenance: false,
-        maintenanceMessage: "D&H Mobiles is currently undergoing scheduled maintenance. Please check back later.",
-        isBlocked: false,
-        blockedMessage: "Access suspended. Please contact the developer to resolve payment and restore service.",
-        adminPasscode: "9988",
-        minVersionCode: 1,
-        minVersionName: "1.0.0",
-        updateUrl: "https://example.com/update"
-      };
-      
-      docRef.set(defaults)
-        .then(() => {
-          currentConfig = defaults;
-          showToast("Initialized default settings in database.");
-        })
-        .catch(err => {
-          console.error("Failed to initialize default config:", err);
-          showToast("Error creating default settings!");
-        });
+    db.collection('categories').onSnapshot(snapshot => {
+      allCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderCategoryList();
+      renderStockMultiProductForm(); // update dropdowns when categories load/change
+    });
+
+    db.collection('system_config').doc('app_status').onSnapshot(doc => {
+      if (doc.exists) {
+        currentConfig = doc.data();
+        if (document.getElementById('configTab').classList.contains('active')) {
+          fillConfigFields();
+        }
+      }
+    });
+
+    // Shop Helper
+    function getShopDisplayName(shopId) {
+      if (!shopId) return 'Dhkin Mobiles';
+      const clean = String(shopId).trim().toLowerCase();
+      if (clean === '1' || clean === 'shop 1' || clean === 'dhkinmobiles') return 'Dhkin Mobiles';
+      if (clean === '2' || clean === 'shop 2' || clean === 'handhikamobile' || clean === 'hanthikamobile') return 'Handhika Mobiles';
+      return shopId;
     }
 
-    function updateFormFields() {
-      if (!currentConfig) return;
-      document.getElementById('maintenanceToggle').checked = currentConfig.isUnderMaintenance || false;
-      document.getElementById('maintenanceMessage').value = currentConfig.maintenanceMessage || "";
-      
-      document.getElementById('blockToggle').checked = currentConfig.isBlocked || false;
-      document.getElementById('blockMessage').value = currentConfig.blockedMessage || "";
-      document.getElementById('newPasscode').value = ""; // clear passcode input field
+    // Step 2: Select Shop Function
+    function selectShop(shopId) {
+      currentActiveShop = shopId;
+      localStorage.setItem('dhkin_selected_shop', shopId);
 
-      document.getElementById('minVersionCode').value = currentConfig.minVersionCode || 1;
-      document.getElementById('minVersionName').value = currentConfig.minVersionName || "1.0.0";
-      document.getElementById('updateUrl').value = currentConfig.updateUrl || "https://example.com/update";
+      const displayName = getShopDisplayName(shopId);
+      document.getElementById('activeShopNameDisplay').textContent = displayName;
+      document.getElementById('activeShopTagDisplay').textContent = shopId;
+      document.getElementById('batchShopLabel').textContent = displayName;
+
+      document.getElementById('shopSelectView').style.display = 'none';
+      document.getElementById('dashboardContent').style.display = 'block';
+
+      renderStockList();
+      renderStockMultiProductForm();
+      renderCategoryMultiForm();
     }
 
-    // Verify code
-    function verifyAdminCode() {
-      let code = "";
-      inputs.forEach(input => code += input.value);
+    function openShopSelectionPage() {
+      document.getElementById('dashboardContent').style.display = 'none';
+      document.getElementById('shopSelectView').style.display = 'flex';
+    }
 
-      if (!currentConfig) {
-        showAuthError("Loading database... Please wait a moment.");
+    // --- MODULE 1: MULTI-STOCK ENTRY FORM ---
+    function renderStockMultiProductForm() {
+      const container = document.getElementById('stockBatchRowsContainer');
+      if (!container) return;
+
+      container.innerHTML = stockDraftRows.map((row, idx) => {
+        const categoryOptions = allCategories.length > 0 ?
+          allCategories.map(c => 
+            `<option value="${escapeHtml(c.name)}" ${row.category === c.name ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
+          ).join('') :
+          `<option value="General">General</option>`;
+
+        return `
+          <div class="form-row-card">
+            <div class="field-input-group">
+              <label>Product Name</label>
+              <input type="text" class="form-input" placeholder="e.g. Tempered Glass 15 Pro" value="${escapeHtml(row.name)}" oninput="updateStockDraftRow(${idx}, 'name', this.value)">
+            </div>
+
+            <div class="field-input-group">
+              <label>Category</label>
+              <select class="form-select" onchange="updateStockDraftRow(${idx}, 'category', this.value)">
+                ${categoryOptions}
+              </select>
+            </div>
+
+            <div class="field-input-group">
+              <label>Selling Price (₹)</label>
+              <input type="number" class="form-input" placeholder="150" value="${row.price}" oninput="updateStockDraftRow(${idx}, 'price', this.value)">
+            </div>
+
+            <div class="field-input-group">
+              <label>Cost Price (₹)</label>
+              <input type="number" class="form-input" placeholder="90" value="${row.costPrice}" oninput="updateStockDraftRow(${idx}, 'costPrice', this.value)">
+            </div>
+
+            <div class="field-input-group">
+              <label>Qty (Units)</label>
+              <input type="number" class="form-input" placeholder="10" value="${row.units}" oninput="updateStockDraftRow(${idx}, 'units', this.value)">
+            </div>
+
+            <div class="row-actions">
+              <button class="remove-row-btn" onclick="removeStockFormRow(${idx})" title="Remove item row">🗑️</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateStockDraftRow(idx, key, value) {
+      if (stockDraftRows[idx]) {
+        stockDraftRows[idx][key] = value;
+      }
+    }
+
+    function addStockFormRow() {
+      const defaultCat = allCategories.length > 0 ? allCategories[0].name : 'General';
+      stockDraftRows.push({ name: '', category: defaultCat, price: '', costPrice: '', units: 1 });
+      renderStockMultiProductForm();
+    }
+
+    function removeStockFormRow(idx) {
+      if (stockDraftRows.length === 1) {
+        const defaultCat = allCategories.length > 0 ? allCategories[0].name : 'General';
+        stockDraftRows = [{ name: '', category: defaultCat, price: '', costPrice: '', units: 1 }];
+      } else {
+        stockDraftRows.splice(idx, 1);
+      }
+      renderStockMultiProductForm();
+    }
+
+    async function saveAllBatchProducts() {
+      if (!currentActiveShop) {
+        alert("Please select a shop first");
         return;
       }
 
-      if (code === currentConfig.adminPasscode) {
-        // Correct pin, grant access
-        localStorage.setItem('dhkin_admin_session_auth', 'true');
-        enterDashboard();
+      const validRows = stockDraftRows.filter(r => r.name.trim() !== '');
+
+      if (validRows.length === 0) {
+        alert("Please enter at least 1 product name to save");
+        return;
+      }
+
+      const shopName = getShopDisplayName(currentActiveShop);
+      const batch = db.batch();
+
+      for (let row of validRows) {
+        let finalCat = row.category;
+        if (!finalCat) {
+          finalCat = allCategories.length > 0 ? allCategories[0].name : 'General';
+        }
+
+        const prodId = 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        const prodRef = db.collection('products').doc(prodId);
+
+        batch.set(prodRef, {
+          id: prodId,
+          name: row.name.trim(),
+          shopId: currentActiveShop,
+          category: finalCat,
+          price: parseFloat(row.price) || 0,
+          costPrice: parseFloat(row.costPrice) || 0,
+          units: parseInt(row.units) || 1,
+          location: ''
+        });
+      }
+
+      try {
+        await batch.commit();
+        showToast(`Successfully added ${validRows.length} item(s) to ${shopName}!`);
+
+        // Reset stock rows
+        const defaultCat = allCategories.length > 0 ? allCategories[0].name : 'General';
+        stockDraftRows = [{ name: '', category: defaultCat, price: '', costPrice: '', units: 1 }];
+        renderStockMultiProductForm();
+      } catch (err) {
+        console.error("Batch save error:", err);
+        alert("Error saving items: " + err.message);
+      }
+    }
+
+
+    // --- MODULE 2: MULTI-CATEGORY ENTRY MODULE ---
+    function renderCategoryMultiForm() {
+      const container = document.getElementById('categoryBatchRowsContainer');
+      if (!container) return;
+
+      container.innerHTML = categoryDraftRows.map((row, idx) => `
+        <div class="cat-form-row-card">
+          <div class="field-input-group">
+            <label>Category Name #${idx + 1}</label>
+            <input type="text" class="form-input" placeholder="e.g. Back Cover, Flip Cover, Charger Adapter, Tempered Glass" value="${escapeHtml(row.name)}" oninput="updateCategoryDraftRow(${idx}, this.value)">
+          </div>
+
+          <div class="row-actions">
+            <button class="remove-row-btn" onclick="removeCategoryFormRow(${idx})" title="Remove category row">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateCategoryDraftRow(idx, value) {
+      if (categoryDraftRows[idx]) {
+        categoryDraftRows[idx].name = value;
+      }
+    }
+
+    function addCategoryFormRow() {
+      categoryDraftRows.push({ name: '' });
+      renderCategoryMultiForm();
+    }
+
+    function removeCategoryFormRow(idx) {
+      if (categoryDraftRows.length === 1) {
+        categoryDraftRows = [{ name: '' }];
       } else {
-        // Shake card and clear input
-        const container = document.getElementById('mainContainer');
-        container.classList.add('shake');
-        setTimeout(() => container.classList.remove('shake'), 400);
-        showAuthError("Incorrect passcode. Try again.");
-        inputs.forEach(input => input.value = "");
-        inputs[0].focus();
+        categoryDraftRows.splice(idx, 1);
+      }
+      renderCategoryMultiForm();
+    }
+
+    async function saveAllBatchCategories() {
+      const validRows = categoryDraftRows.filter(r => r.name.trim() !== '');
+
+      if (validRows.length === 0) {
+        alert("Please enter at least 1 category name to save");
+        return;
+      }
+
+      const batch = db.batch();
+      let addedCount = 0;
+
+      for (let row of validRows) {
+        const catName = row.name.trim();
+        // Check if category already exists
+        const exists = allCategories.some(c => c.name.toLowerCase() === catName.toLowerCase());
+        if (!exists) {
+          const catId = 'cat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+          const catRef = db.collection('categories').doc(catId);
+          batch.set(catRef, { id: catId, name: catName });
+          addedCount++;
+        }
+      }
+
+      try {
+        await batch.commit();
+        showToast(`Saved ${addedCount} new category(ies) successfully!`);
+
+        categoryDraftRows = [{ name: '' }];
+        renderCategoryMultiForm();
+      } catch (err) {
+        console.error("Error saving categories:", err);
+        alert("Error saving categories: " + err.message);
       }
     }
 
-    function showAuthError(msg) {
-      const err = document.getElementById('authError');
-      err.textContent = msg;
-      err.style.opacity = 1;
-      setTimeout(() => err.style.opacity = 0, 4000);
+
+    // Render Functions
+    function renderStockList() {
+      const container = document.getElementById('stockContainer');
+      const searchQuery = document.getElementById('stockSearch').value.toLowerCase().trim();
+
+      let filtered = allProducts.filter(p => {
+        const matchesShop = p.shopId === currentActiveShop;
+        const matchesSearch = !searchQuery || 
+          (p.name && p.name.toLowerCase().includes(searchQuery)) || 
+          (p.category && p.category.toLowerCase().includes(searchQuery));
+        return matchesShop && matchesSearch;
+      });
+
+      const shopName = getShopDisplayName(currentActiveShop);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: rgba(255,253,240,0.4);">
+            📦 No stock items found in <strong>${escapeHtml(shopName)}</strong>. Use the form above to add items!
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(p => {
+        const isLow = (p.units || 0) < 5;
+
+        return `
+          <div class="product-card">
+            <div class="product-header">
+              <div>
+                <div class="product-name">${escapeHtml(p.name || 'Unnamed')}</div>
+                <div class="product-cat">${escapeHtml(p.category || 'General')}</div>
+              </div>
+            </div>
+
+            <div class="price-row">
+              <div>
+                <div class="price-tag">₹${p.price || 0}</div>
+                <div class="cost-price-tag">Cost: ₹${p.costPrice || 0}</div>
+              </div>
+              <button class="delete-icon-btn" onclick="deleteProduct('${p.id}')">🗑️ Delete</button>
+            </div>
+
+            <div class="stock-counter-bar">
+              <span class="units-badge ${isLow ? 'low' : ''}">
+                Stock: ${p.units || 0} units ${isLow ? '⚠️' : ''}
+              </span>
+              <div style="display: flex; gap: 6px;">
+                <button class="unit-btn" onclick="updateStock('${p.id}', ${(p.units || 0) - 1})">-</button>
+                <button class="unit-btn" onclick="updateStock('${p.id}', ${(p.units || 0) + 1})">+</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
-    function enterDashboard() {
-      document.getElementById('authView').style.display = 'none';
-      document.getElementById('dashboardContent').style.display = 'block';
-      updateFormFields();
+    function renderCategoryList() {
+      const container = document.getElementById('categoryContainer');
+      if (allCategories.length === 0) {
+        container.innerHTML = `<div style="grid-column: 1/-1; color: rgba(255,253,240,0.4);">No categories added yet. Add categories using the form above.</div>`;
+        return;
+      }
+      container.innerHTML = allCategories.map(c => `
+        <div class="cat-card">
+          <span style="font-weight: 600;">🏷️ ${escapeHtml(c.name || '')}</span>
+          <button class="delete-icon-btn" onclick="deleteCategory('${c.id}')">✕</button>
+        </div>
+      `).join('');
     }
 
-    function logoutAdmin() {
-      localStorage.removeItem('dhkin_admin_session_auth');
-      document.getElementById('dashboardContent').style.display = 'none';
-      document.getElementById('authView').style.display = 'flex';
-      inputs.forEach(input => input.value = "");
-      inputs[0].focus();
+    // Actions
+    function updateStock(id, newUnits) {
+      if (newUnits < 0) newUnits = 0;
+      db.collection('products').doc(id).update({ units: newUnits })
+        .then(() => showToast("Stock updated!"))
+        .catch(err => alert("Error updating stock: " + err.message));
     }
 
-    // Block Confirmation Handlers
-    function handleBlockToggle(checkbox) {
-      if (checkbox.checked) {
-        // Prompt dialog
-        pendingBlockState = true;
-        document.getElementById('confirmModal').classList.add('active');
-        checkbox.checked = false; // reset visually until confirm
+    function deleteProduct(id) {
+      if (confirm("Are you sure you want to delete this stock item?")) {
+        db.collection('products').doc(id).delete()
+          .then(() => showToast("Product deleted!"))
+          .catch(err => alert(err.message));
       }
     }
 
-    function confirmBlockToggle() {
-      document.getElementById('confirmModal').classList.remove('active');
-      document.getElementById('blockToggle').checked = true;
-      pendingBlockState = false;
+    function deleteCategory(id) {
+      if (confirm("Delete this category?")) {
+        db.collection('categories').doc(id).delete().then(() => showToast("Category deleted!"));
+      }
     }
 
-    function cancelBlockToggle() {
-      document.getElementById('confirmModal').classList.remove('active');
-      document.getElementById('blockToggle').checked = false;
-      pendingBlockState = false;
+    // Tabs
+    function switchTab(tabId, el) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+
+      if (tabId === 'configTab') fillConfigFields();
+      if (tabId === 'categoryTab') renderCategoryMultiForm();
     }
 
-    // Save configuration updates back to Firestore
+    function fillConfigFields() {
+      if (!currentConfig) return;
+      document.getElementById('maintenanceToggle').checked = currentConfig.isUnderMaintenance || false;
+      document.getElementById('maintenanceMessage').value = currentConfig.maintenanceMessage || "";
+      document.getElementById('blockToggle').checked = currentConfig.isBlocked || false;
+      document.getElementById('blockMessage').value = currentConfig.blockedMessage || "";
+    }
+
     function saveConfiguration() {
       if (!currentConfig) return;
-
       const updateData = {
         isUnderMaintenance: document.getElementById('maintenanceToggle').checked,
         maintenanceMessage: document.getElementById('maintenanceMessage').value,
         isBlocked: document.getElementById('blockToggle').checked,
         blockedMessage: document.getElementById('blockMessage').value,
-        minVersionCode: parseInt(document.getElementById('minVersionCode').value) || 1,
-        minVersionName: document.getElementById('minVersionName').value.trim() || "1.0.0",
-        updateUrl: document.getElementById('updateUrl').value.trim() || "https://example.com/update",
       };
 
-      // Check if new password is input
-      const newPinInput = document.getElementById('newPasscode').value.trim();
-      if (newPinInput) {
-        if (newPinInput.length !== 4 || isNaN(newPinInput)) {
-          alert("Passcode must be exactly 4 digits.");
-          return;
-        }
-        updateData.adminPasscode = newPinInput;
+      const pin = document.getElementById('newPasscode').value.trim();
+      if (pin) {
+        if (pin.length !== 4 || isNaN(pin)) return alert("Passcode must be 4 digits");
+        updateData.adminPasscode = pin;
       }
 
-      docRef.update(updateData)
+      db.collection('system_config').doc('app_status').update(updateData)
         .then(() => {
-          showToast("Config saved & synced successfully!");
-          document.getElementById('newPasscode').value = ""; // clear pin input
-        })
-        .catch(err => {
-          console.error("Write error:", err);
-          alert("Write Permission Denied! Ensure database rules allow system_config access.");
+          showToast("App Controls updated!");
+          document.getElementById('newPasscode').value = "";
         });
+    }
+
+    // Auth
+    const inputs = document.querySelectorAll('.pin-input');
+    function moveNext(input, idx) {
+      if (input.value.length === 1 && idx < 4) inputs[idx].focus();
+    }
+    function checkBack(e, idx) {
+      if (e.key === "Backspace" && idx > 1 && !inputs[idx - 1].value) inputs[idx - 2].focus();
+    }
+
+    function verifyAdminCode() {
+      let code = "";
+      inputs.forEach(i => code += i.value);
+      const passcode = (currentConfig && currentConfig.adminPasscode) ? currentConfig.adminPasscode : "9988";
+
+      if (code === passcode) {
+        localStorage.setItem('dhkin_admin_auth', 'true');
+        showShopSelectionScreen();
+      } else {
+        document.getElementById('authError').style.opacity = 1;
+        setTimeout(() => document.getElementById('authError').style.opacity = 0, 3000);
+      }
+    }
+
+    function showShopSelectionScreen() {
+      document.getElementById('authView').style.display = 'none';
+      const savedShop = localStorage.getItem('dhkin_selected_shop');
+      if (savedShop) {
+        selectShop(savedShop);
+      } else {
+        document.getElementById('shopSelectView').style.display = 'flex';
+      }
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem('dhkin_admin_auth');
+      localStorage.removeItem('dhkin_selected_shop');
+      document.getElementById('dashboardContent').style.display = 'none';
+      document.getElementById('shopSelectView').style.display = 'none';
+      document.getElementById('authView').style.display = 'flex';
+      inputs.forEach(i => i.value = '');
     }
 
     function showToast(msg) {
       const toast = document.getElementById('successToast');
-      toast.querySelector('span').nextSibling.textContent = " " + msg;
+      toast.textContent = msg;
       toast.classList.add('active');
-      setTimeout(() => toast.classList.remove('active'), 3000);
+      setTimeout(() => toast.classList.remove('active'), 2500);
     }
 
-    // On Load Check
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     window.onload = function() {
-      if (localStorage.getItem('dhkin_admin_session_auth') === 'true') {
-        // Check if database configured first
-        const checkConfigTimer = setInterval(() => {
-          if (currentConfig) {
-            clearInterval(checkConfigTimer);
-            enterDashboard();
-          }
-        }, 150);
+      if (localStorage.getItem('dhkin_admin_auth') === 'true') {
+        showShopSelectionScreen();
       } else {
         inputs[0].focus();
       }
-    }
+    };
   </script>
 </body>
 </html>

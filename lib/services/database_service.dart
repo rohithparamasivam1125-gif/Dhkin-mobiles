@@ -191,7 +191,7 @@ class DatabaseService {
           await updateStock(
               item.productId, remainingStock < 0 ? 0 : remainingStock);
 
-          if (remainingStock < 5) {
+          if (remainingStock < 2) {
             await _sendNotification(sale.shopId, 'Low Stock Alert ⚠️',
                 '${product.name} is running low ($remainingStock units left)');
           }

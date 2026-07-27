@@ -100,7 +100,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
           itemCount: products.length,
           itemBuilder: (context, index) {
             final product = products[index];
-            final bool lowStock = product.units < 5;
+            final bool lowStock = product.units < 2;
             
             return Card(
               child: InkWell(
