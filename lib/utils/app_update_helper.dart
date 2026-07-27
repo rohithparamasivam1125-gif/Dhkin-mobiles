@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:ota_update/ota_update.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
 import 'app_theme.dart';
@@ -20,7 +21,7 @@ class AppUpdateHelper {
         final int latestVersionCode = (rawLatestCode is int)
             ? rawLatestCode
             : (int.tryParse(rawLatestCode?.toString() ?? '1') ?? 1);
-        final String latestVersionName = data['latestVersionName'] ?? '1.0.1';
+        final String latestVersionName = data['latestVersionName'] ?? '1.0.3';
         final String updateUrl = data['updateUrl'] ??
             'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk';
 
@@ -67,33 +68,31 @@ class AppUpdateHelper {
               ),
               const SizedBox(height: 12),
               Text(
-                'A new version ($version) with new features is ready for download.',
+                'A new version ($version) with new features is ready for installation.',
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () async {
+                onPressed: () {
                   Navigator.of(dialogContext).pop();
                   _isDialogShowing = false;
-                  try {
-                    final uri = Uri.parse(updateUrl);
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } catch (e) {
-                    debugPrint('Could not launch update URL: $e');
-                  }
+                  startInAppUpdate(context, updateUrl);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryIvory,
                   foregroundColor: AppTheme.accentForest,
                   minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.download),
+                    Icon(Icons.download_rounded),
                     SizedBox(width: 8),
-                    Text('DOWNLOAD NEW APK',
+                    Text('INSTALL UPDATE NOW',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
@@ -114,5 +113,193 @@ class AppUpdateHelper {
     ).then((_) {
       _isDialogShowing = false;
     });
+  }
+
+  static void startInAppUpdate(BuildContext context, String updateUrl) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return _InAppDownloadDialog(updateUrl: updateUrl);
+      },
+    );
+  }
+}
+
+class _InAppDownloadDialog extends StatefulWidget {
+  final String updateUrl;
+
+  const _InAppDownloadDialog({required this.updateUrl});
+
+  @override
+  State<_InAppDownloadDialog> createState() => _InAppDownloadDialogState();
+}
+
+class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
+  double _progressVal = 0.0;
+  String _progressStr = '0%';
+  String _statusText = 'Starting download...';
+  bool _isError = false;
+  String _errorMessage = '';
+  bool _isStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDownload();
+  }
+
+  void _startDownload() {
+    if (_isStarted) return;
+    _isStarted = true;
+
+    try {
+      OtaUpdate().execute(
+        widget.updateUrl,
+        destinationFilename: 'dhkin_mobiles_update.apk',
+      ).listen(
+        (OtaEvent event) {
+          if (!mounted) return;
+          if (event.status == OtaStatus.DOWNLOADING) {
+            final progress = int.tryParse(event.value ?? '0') ?? 0;
+            setState(() {
+              _progressVal = (progress / 100.0).clamp(0.0, 1.0);
+              _progressStr = '$progress%';
+              _statusText = 'Downloading update package...';
+            });
+          } else if (event.status == OtaStatus.INSTALLING) {
+            setState(() {
+              _progressVal = 1.0;
+              _progressStr = '100%';
+              _statusText = 'Launching installer...';
+            });
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            });
+          } else if (event.status == OtaStatus.ALREADY_RUNNING_ERROR) {
+            setState(() {
+              _statusText = 'Update in progress...';
+            });
+          } else {
+            setState(() {
+              _isError = true;
+              _errorMessage = 'Download issue (${event.status}). You can download via browser.';
+            });
+          }
+        },
+        onError: (e) {
+          if (!mounted) return;
+          setState(() {
+            _isError = true;
+            _errorMessage = 'Could not download APK automatically. You can download via browser.';
+          });
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isError = true;
+          _errorMessage = 'Error: $e';
+        });
+      }
+    }
+  }
+
+  void _fallbackToBrowser() async {
+    Navigator.of(context).pop();
+    try {
+      final uri = Uri.parse(widget.updateUrl);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Could not launch fallback update URL: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _isError ? Colors.red.shade50 : AppTheme.accentForest.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _isError ? Icons.error_outline : Icons.system_update_rounded,
+                color: _isError ? Colors.red : AppTheme.accentForest,
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _isError ? 'UPDATE DOWNLOAD FAILED' : 'DOWNLOADING UPDATE',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                letterSpacing: 1,
+                color: _isError ? Colors.red : AppTheme.charcoalBlack,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (!_isError) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: _progressVal > 0 ? _progressVal : null,
+                  backgroundColor: Colors.grey.shade200,
+                  color: AppTheme.accentForest,
+                  minHeight: 10,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(_statusText, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(_progressStr, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.accentForest)),
+                ],
+              ),
+            ] else ...[
+              Text(
+                _errorMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.black87, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _fallbackToBrowser,
+                icon: const Icon(Icons.open_in_browser),
+                label: const Text('Download via Browser'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentForest,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }
