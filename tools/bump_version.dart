@@ -89,7 +89,7 @@ Future<void> main() async {
         'fields': {
           'latestVersionCode': {'integerValue': targetBuild.toString()},
           'latestVersionName': {'stringValue': targetVersionName},
-          'updateUrl': {'stringValue': 'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk'},
+          'updateUrl': {'stringValue': 'https://raw.githubusercontent.com/rohithparamasivam1125-gif/Dhkin-mobiles/main/apks/app-release.apk'},
         }
       }),
     );

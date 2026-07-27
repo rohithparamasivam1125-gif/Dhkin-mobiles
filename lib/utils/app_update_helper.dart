@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:ota_update/ota_update.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
 import '../main.dart';
 import 'app_theme.dart';
 
@@ -23,7 +24,7 @@ class AppUpdateHelper {
             : (int.tryParse(rawLatestCode?.toString() ?? '1') ?? 1);
         final String latestVersionName = data['latestVersionName'] ?? '1.0.3';
         final String updateUrl = data['updateUrl'] ??
-            'https://github.com/rohithparamasivam1125-gif/Dhkin-mobiles/raw/main/apks/app-release.apk';
+            'https://raw.githubusercontent.com/rohithparamasivam1125-gif/Dhkin-mobiles/main/apks/app-release.apk';
 
         if (latestVersionCode > kCurrentVersionCode) {
           if (context.mounted && !_isDialogShowing) {
@@ -138,10 +139,12 @@ class _InAppDownloadDialog extends StatefulWidget {
 class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
   double _progressVal = 0.0;
   String _progressStr = '0%';
-  String _statusText = 'Starting download...';
+  String _statusText = 'Preparing update package...';
+  bool _isDownloaded = false;
   bool _isError = false;
   String _errorMessage = '';
   bool _isStarted = false;
+  String _directUrl = '';
 
   @override
   void initState() {
@@ -149,13 +152,57 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
     _startDownload();
   }
 
-  void _startDownload() {
+  Future<String> _resolveDirectUrl(String originalUrl) async {
+    String targetUrl = originalUrl;
+    if (targetUrl.contains('github.com') && targetUrl.contains('/raw/')) {
+      targetUrl = targetUrl
+          .replaceFirst('github.com', 'raw.githubusercontent.com')
+          .replaceFirst('/raw/', '/');
+    }
+
+    try {
+      final client = http.Client();
+      final req = http.Request('GET', Uri.parse(targetUrl))..followRedirects = true;
+      final res = await client.send(req).timeout(const Duration(seconds: 5));
+      if (res.request?.url != null) {
+        targetUrl = res.request!.url.toString();
+      }
+      client.close();
+    } catch (e) {
+      debugPrint('Notice: Redirect resolution skipped ($e)');
+    }
+    return targetUrl;
+  }
+
+  void _triggerInstallation() {
+    if (_directUrl.isEmpty) return;
+    try {
+      OtaUpdate().execute(
+        _directUrl,
+        destinationFilename: 'dhkin_mobiles_update.apk',
+      ).listen(
+        (event) {},
+        onError: (e) => debugPrint('Re-trigger installer error: $e'),
+      );
+    } catch (e) {
+      debugPrint('Error triggering installer: $e');
+    }
+  }
+
+  void _startDownload() async {
     if (_isStarted) return;
     _isStarted = true;
 
     try {
+      _directUrl = await _resolveDirectUrl(widget.updateUrl);
+
+      if (!mounted) return;
+      setState(() {
+        _statusText = 'Downloading update package...';
+      });
+
       OtaUpdate().execute(
-        widget.updateUrl,
+        _directUrl,
         destinationFilename: 'dhkin_mobiles_update.apk',
       ).listen(
         (OtaEvent event) {
@@ -171,16 +218,17 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
             setState(() {
               _progressVal = 1.0;
               _progressStr = '100%';
-              _statusText = 'Launching installer...';
-            });
-            Future.delayed(const Duration(seconds: 1), () {
-              if (mounted) {
-                Navigator.of(context).pop();
-              }
+              _statusText = 'Ready to install!';
+              _isDownloaded = true;
             });
           } else if (event.status == OtaStatus.ALREADY_RUNNING_ERROR) {
             setState(() {
               _statusText = 'Update in progress...';
+            });
+          } else if (event.status == OtaStatus.PERMISSION_NOT_GRANTED_ERROR) {
+            setState(() {
+              _isError = true;
+              _errorMessage = 'Permission required: Please allow "Install Unknown Apps" for D&H Mobiles in Android Settings.';
             });
           } else {
             setState(() {
@@ -233,27 +281,70 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _isError ? Colors.red.shade50 : AppTheme.accentForest.withValues(alpha: 0.1),
+                color: _isError
+                    ? Colors.red.shade50
+                    : (_isDownloaded ? Colors.green.shade50 : AppTheme.accentForest.withValues(alpha: 0.1)),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                _isError ? Icons.error_outline : Icons.system_update_rounded,
-                color: _isError ? Colors.red : AppTheme.accentForest,
-                size: 40,
+                _isError
+                    ? Icons.error_outline
+                    : (_isDownloaded ? Icons.check_circle_outline : Icons.system_update_rounded),
+                color: _isError
+                    ? Colors.red
+                    : (_isDownloaded ? Colors.green.shade700 : AppTheme.accentForest),
+                size: 44,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              _isError ? 'UPDATE DOWNLOAD FAILED' : 'DOWNLOADING UPDATE',
+              _isError
+                  ? 'UPDATE DOWNLOAD FAILED'
+                  : (_isDownloaded ? 'DOWNLOAD COMPLETE' : 'DOWNLOADING UPDATE'),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
                 letterSpacing: 1,
-                color: _isError ? Colors.red : AppTheme.charcoalBlack,
+                color: _isError
+                    ? Colors.red
+                    : (_isDownloaded ? Colors.green.shade800 : AppTheme.charcoalBlack),
               ),
             ),
             const SizedBox(height: 16),
-            if (!_isError) ...[
+            if (_isDownloaded) ...[
+              const Text(
+                'Update package is downloaded and ready to install.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  _triggerInstallation();
+                },
+                icon: const Icon(Icons.install_mobile_rounded),
+                label: const Text('TAP TO INSTALL NOW', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Note: If Android prompts, enable "Allow unknown apps" permission for D&H Mobiles.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close', style: TextStyle(color: Colors.grey)),
+              ),
+            ] else if (!_isError) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
