@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ota_update/ota_update.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
@@ -137,10 +138,13 @@ class _InAppDownloadDialog extends StatefulWidget {
 }
 
 class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
+  static const _installerChannel = MethodChannel('com.dhkin_mobiles.app/installer');
+
   double _progressVal = 0.0;
   String _progressStr = '0%';
   String _statusText = 'Preparing update package...';
   bool _isDownloaded = false;
+  bool _needsPermission = false;
   bool _isError = false;
   String _errorMessage = '';
   bool _isStarted = false;
@@ -174,7 +178,38 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
     return targetUrl;
   }
 
-  void _triggerInstallation() {
+  Future<void> _openInstallSettings() async {
+    try {
+      await _installerChannel.invokeMethod('openInstallPermissionSettings');
+    } catch (e) {
+      debugPrint('Error opening install settings: $e');
+    }
+  }
+
+  Future<void> _triggerInstallation() async {
+    try {
+      final bool canInstall = await _installerChannel.invokeMethod('canRequestPackageInstalls') ?? true;
+      if (!canInstall) {
+        setState(() {
+          _needsPermission = true;
+        });
+        await _openInstallSettings();
+        return;
+      }
+
+      final bool success = await _installerChannel.invokeMethod('installDownloadedApk', {
+        'fileName': 'dhkin_mobiles_update.apk',
+      });
+      if (!success) {
+        _fallbackOtaTrigger();
+      }
+    } catch (e) {
+      debugPrint('Method channel install error: $e, using fallback');
+      _fallbackOtaTrigger();
+    }
+  }
+
+  void _fallbackOtaTrigger() {
     if (_directUrl.isEmpty) return;
     try {
       OtaUpdate().execute(
@@ -205,7 +240,7 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
         _directUrl,
         destinationFilename: 'dhkin_mobiles_update.apk',
       ).listen(
-        (OtaEvent event) {
+        (OtaEvent event) async {
           if (!mounted) return;
           if (event.status == OtaStatus.DOWNLOADING) {
             final progress = int.tryParse(event.value ?? '0') ?? 0;
@@ -219,11 +254,14 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
               }
             });
           } else if (event.status == OtaStatus.INSTALLING) {
+            final bool canInstall = await _installerChannel.invokeMethod('canRequestPackageInstalls') ?? true;
+            if (!mounted) return;
             setState(() {
               _progressVal = 1.0;
               _progressStr = '100%';
               _statusText = 'Ready to install!';
               _isDownloaded = true;
+              _needsPermission = !canInstall;
             });
           } else if (event.status == OtaStatus.ALREADY_RUNNING_ERROR) {
             setState(() {
@@ -232,6 +270,7 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
           } else if (event.status == OtaStatus.PERMISSION_NOT_GRANTED_ERROR) {
             setState(() {
               _isDownloaded = true;
+              _needsPermission = true;
               _statusText = 'Permission needed to install';
             });
           } else {
@@ -321,7 +360,50 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.black87),
               ),
-              const SizedBox(height: 20),
+              if (_needsPermission) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.security, color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Permission Required',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Android requires permission to install unknown apps from D&H Mobiles.',
+                        style: TextStyle(fontSize: 11, color: Colors.orange.shade900),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: _openInstallSettings,
+                        icon: const Icon(Icons.settings_suggest, size: 18),
+                        label: const Text('OPEN SETTINGS TO ALLOW', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange.shade900,
+                          side: BorderSide(color: Colors.orange.shade400),
+                          minimumSize: const Size(double.infinity, 38),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () {
                   _triggerInstallation();
@@ -339,7 +421,7 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Note: If Android prompts, enable "Allow unknown apps" permission for D&H Mobiles.',
+                'Note: If Android prompts, tap Settings and enable "Allow from this source".',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               ),
