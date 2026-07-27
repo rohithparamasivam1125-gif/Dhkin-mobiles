@@ -77,6 +77,15 @@
       display: inline-block;
     }
 
+    .admin-logo {
+      width: 76px;
+      height: 76px;
+      border-radius: 18px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 253, 240, 0.2);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+
     .logo-fallback {
       width: 70px;
       height: 70px;
@@ -586,7 +595,8 @@
     <!-- Header -->
     <div class="header">
       <div class="logo-container">
-        <div class="logo-fallback">D&H</div>
+        <img src="logo.png" alt="DHKIN Logo" class="admin-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <div class="logo-fallback" style="display: none;">D&H</div>
       </div>
       <h1>App Status Control</h1>
       <p>Super Admin Panel</p>
