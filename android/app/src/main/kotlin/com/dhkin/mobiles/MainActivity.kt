@@ -53,13 +53,13 @@ class MainActivity : FlutterFragmentActivity() {
                 "installDownloadedApk" -> {
                     try {
                         val fileName = call.argument<String>("fileName") ?: "dhkin_mobiles_update.apk"
-                        val apkFile = File(getExternalFilesDir(null), fileName)
-                        if (apkFile.exists()) {
-                            val apkUri: Uri = FileProvider.getUriForFile(
-                                this,
-                                "$packageName.fileprovider",
-                                apkFile
-                            )
+                        val apkFile = findDownloadedApkFile(fileName)
+                        if (apkFile != null) {
+                            val apkUri: Uri = try {
+                                FileProvider.getUriForFile(this, "$packageName.ota_update_provider", apkFile)
+                            } catch (e: Exception) {
+                                FileProvider.getUriForFile(this, "$packageName.fileprovider", apkFile)
+                            }
                             val intent = Intent(Intent.ACTION_VIEW).apply {
                                 setDataAndType(apkUri, "application/vnd.android.package-archive")
                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -68,7 +68,7 @@ class MainActivity : FlutterFragmentActivity() {
                             startActivity(intent)
                             result.success(true)
                         } else {
-                            result.error("FILE_NOT_FOUND", "APK file not found at ${apkFile.absolutePath}", null)
+                            result.error("FILE_NOT_FOUND", "APK file not found for install", null)
                         }
                     } catch (e: Exception) {
                         result.error("INSTALL_ERROR", e.message, null)
@@ -77,7 +77,7 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
-        
+
         // Share Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "sharePdfDirect") {
@@ -130,6 +130,24 @@ class MainActivity : FlutterFragmentActivity() {
                 result.notImplemented()
             }
         }
+    }
+
+    private fun findDownloadedApkFile(fileName: String): File? {
+        val searchDirs = listOfNotNull(
+            filesDir,
+            cacheDir,
+            getExternalFilesDir(null),
+            externalCacheDir,
+            try { getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) } catch (e: Exception) { null },
+            try { android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS) } catch (e: Exception) { null }
+        )
+        for (dir in searchDirs) {
+            val file = File(dir, fileName)
+            if (file.exists() && file.length() > 0) {
+                return file
+            }
+        }
+        return null
     }
 
     private fun sharePdfToWhatsApp(phone: String, filePath: String, textMessage: String?): Boolean {

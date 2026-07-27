@@ -137,7 +137,7 @@ class _InAppDownloadDialog extends StatefulWidget {
   State<_InAppDownloadDialog> createState() => _InAppDownloadDialogState();
 }
 
-class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
+class _InAppDownloadDialogState extends State<_InAppDownloadDialog> with WidgetsBindingObserver {
   static const _installerChannel = MethodChannel('com.dhkin_mobiles.app/installer');
 
   double _progressVal = 0.0;
@@ -153,7 +153,34 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startDownload();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissionStatus();
+    }
+  }
+
+  Future<void> _checkPermissionStatus() async {
+    try {
+      final bool canInstall = await _installerChannel.invokeMethod('canRequestPackageInstalls') ?? true;
+      if (mounted) {
+        setState(() {
+          _needsPermission = !canInstall;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking install permission: $e');
+    }
   }
 
   Future<String> _resolveDirectUrl(String originalUrl) async {
@@ -195,11 +222,16 @@ class _InAppDownloadDialogState extends State<_InAppDownloadDialog> {
         });
         await _openInstallSettings();
         return;
+      } else {
+        setState(() {
+          _needsPermission = false;
+        });
       }
 
       final bool success = await _installerChannel.invokeMethod('installDownloadedApk', {
         'fileName': 'dhkin_mobiles_update.apk',
-      });
+      }) ?? false;
+
       if (!success) {
         _fallbackOtaTrigger();
       }
