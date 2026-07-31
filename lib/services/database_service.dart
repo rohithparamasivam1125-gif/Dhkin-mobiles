@@ -12,6 +12,7 @@ import '../models/enquiry_model.dart';
 import '../models/gst_settings_model.dart';
 import '../models/product_order_model.dart';
 import '../models/phone_book_contact_model.dart';
+import '../models/pending_sale_model.dart';
 import 'dart:async';
 
 class DatabaseService {
@@ -164,6 +165,55 @@ class DatabaseService {
       }
     } catch (_) {}
     return names.toList();
+  }
+
+  // Pending Sales Operations
+  Future<void> addPendingSale(PendingSaleModel pendingSale) async {
+    await _db.collection('pending_sales').doc(pendingSale.id).set(pendingSale.toMap());
+    await _sendNotification(
+      pendingSale.sale.shopId,
+      'Discount Approval ⚠️',
+      '${pendingSale.sale.employeeId} requested a discount of ₹${pendingSale.sale.discountAmount}',
+    );
+  }
+
+  Stream<List<PendingSaleModel>> getPendingSales(String shopId) {
+    return _db.collection('pending_sales')
+        .where('sale.shopId', isEqualTo: shopId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => PendingSaleModel.fromMap(doc.data() as Map<String, dynamic>))
+            .toList());
+  }
+
+  Future<void> approvePendingSale(String pendingSaleId) async {
+    final doc = await _db.collection('pending_sales').doc(pendingSaleId).get();
+    if (doc.exists) {
+      final pendingSale = PendingSaleModel.fromMap(doc.data()!);
+      await addSale(pendingSale.sale); // This adds to sales and deducts stock
+      await _db.collection('pending_sales').doc(pendingSaleId).update({'status': 'approved'});
+      
+      await _sendNotification(
+        pendingSale.sale.shopId,
+        'Discount Approved ✅',
+        'Discount of ₹${pendingSale.sale.discountAmount} approved.',
+      );
+    }
+  }
+
+  Future<void> rejectPendingSale(String pendingSaleId) async {
+    await _db.collection('pending_sales').doc(pendingSaleId).update({'status': 'rejected'});
+    
+    final doc = await _db.collection('pending_sales').doc(pendingSaleId).get();
+    if (doc.exists) {
+       final pendingSale = PendingSaleModel.fromMap(doc.data()!);
+       await _sendNotification(
+        pendingSale.sale.shopId,
+        'Discount Rejected ❌',
+        'Discount request for ${pendingSale.sale.customerName} was rejected.',
+      );
+    }
   }
 
   // Sales Operations

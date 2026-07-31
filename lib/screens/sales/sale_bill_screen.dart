@@ -15,6 +15,7 @@ import '../../utils/shop_helper.dart';
 import '../../utils/pdf_invoice_helper.dart';
 import '../../utils/sound_helper.dart';
 import 'package:uuid/uuid.dart';
+import '../../models/pending_sale_model.dart';
 import '../../widgets/shimmer.dart';
 
 class SaleBillScreen extends StatefulWidget {
@@ -75,6 +76,7 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
   String _paymentMode = 'Cash';
   final _cashPaidController = TextEditingController();
   final _onlinePaidController = TextEditingController();
+  final _discountAmountController = TextEditingController();
 
   @override
   void dispose() {
@@ -83,6 +85,7 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
     _customerPhoneController.dispose();
     _cashPaidController.dispose();
     _onlinePaidController.dispose();
+    _discountAmountController.dispose();
     super.dispose();
   }
 
@@ -506,22 +509,48 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                         if (dropdownValue != null && !uniqueCategoryNames.contains(dropdownValue)) {
                           dropdownValue = null;
                         }
-                        return DropdownButtonFormField<String>(
-                          value: dropdownValue,
-                          isExpanded: true,
-                          decoration: InputDecoration(
-                            labelText: 'Select Category',
-                            prefixIcon: const Icon(Icons.category_outlined, size: 20),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          items: uniqueCategoryNames.map((name) => DropdownMenuItem(
-                            value: name, 
-                            child: Text(name, style: const TextStyle(fontSize: 14))
-                          )).toList(),
-                          onChanged: (val) => setState(() {
-                            _selectedCategory = val;
-                            _selectedProduct = null;
-                          }),
+                        return Autocomplete<String>(
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            if (textEditingValue.text.isEmpty) {
+                              return uniqueCategoryNames;
+                            }
+                            return uniqueCategoryNames.where((String option) {
+                              return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                            });
+                          },
+                          onSelected: (String selection) {
+                            setState(() {
+                              _selectedCategory = selection;
+                              _selectedProduct = null;
+                            });
+                          },
+                          fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                            if (dropdownValue != null && textEditingController.text.isEmpty) {
+                              textEditingController.text = dropdownValue;
+                            }
+                            return TextFormField(
+                              controller: textEditingController,
+                              focusNode: focusNode,
+                              decoration: InputDecoration(
+                                labelText: 'Select Category',
+                                hintText: 'Search category...',
+                                prefixIcon: const Icon(Icons.category_outlined, size: 20),
+                                suffixIcon: const Icon(Icons.search),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedCategory = val.trim();
+                                  _selectedProduct = null;
+                                });
+                              },
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) return 'Required';
+                                if (!uniqueCategoryNames.contains(val.trim())) return 'Select valid category';
+                                return null;
+                              },
+                            );
+                          },
                         );
                       },
                     ),
@@ -629,6 +658,15 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
               ],
               if (_cart.isNotEmpty || _selectedProduct != null) ...[
                 const Divider(height: 48),
+                _buildTextField(
+                  controller: _discountAmountController,
+                  label: 'Discount Amount (₹)',
+                  hint: 'Enter discount amount',
+                  icon: Icons.discount_outlined,
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) => setState(() {}),
+                ),
+                const SizedBox(height: 16),
                 _buildOrderSummary(),
                 Builder(
                   builder: (context) {
@@ -639,10 +677,11 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                       final qty = int.tryParse(_quantityController.text) ?? 1;
                       subtotal = _selectedProduct!.price * qty;
                     }
+                    final double discount = double.tryParse(_discountAmountController.text) ?? 0.0;
                     final double exchangeCredit = widget.exchangeCredit ?? 0.0;
-                    final double netPayable = (subtotal - exchangeCredit).clamp(0.0, double.infinity);
+                    final double netPayable = (subtotal - discount - exchangeCredit).clamp(0.0, double.infinity);
                     
-                    if (netPayable <= 0.0 && exchangeCredit > 0) {
+                    if (netPayable <= 0.0 && (exchangeCredit > 0 || discount > 0)) {
                       return Container(
                         padding: const EdgeInsets.all(16),
                         margin: const EdgeInsets.symmetric(vertical: 8),
@@ -671,9 +710,11 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                       : ElevatedButton.icon(
                           icon: const Icon(Icons.receipt_long_rounded),
                           onPressed: _issueFullBill,
-                          label: Text(widget.exchangeCredit != null && widget.exchangeCredit! > 0 
-                              ? 'COMPLETE EXCHANGE' 
-                              : (_cart.isEmpty ? 'GENERATE BILL' : 'GENERATE FULL BILL')),
+                          label: Text(widget.employeeName != 'Owner' && (double.tryParse(_discountAmountController.text) ?? 0.0) > 0
+                              ? 'REQUEST APPROVAL'
+                              : (widget.exchangeCredit != null && widget.exchangeCredit! > 0 
+                                  ? 'COMPLETE EXCHANGE' 
+                                  : (_cart.isEmpty ? 'GENERATE BILL' : 'GENERATE FULL BILL'))),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 18),
                             textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
@@ -847,9 +888,10 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
       itemCount = 1;
     }
 
+    final double discount = double.tryParse(_discountAmountController.text) ?? 0.0;
     final double exchangeCredit = widget.exchangeCredit ?? 0.0;
-    final double netPayable = (subtotal - exchangeCredit).clamp(0.0, double.infinity);
-    final double refundDue = (exchangeCredit - subtotal).clamp(0.0, double.infinity);
+    final double netPayable = (subtotal - discount - exchangeCredit).clamp(0.0, double.infinity);
+    final double refundDue = (exchangeCredit - (subtotal - discount)).clamp(0.0, double.infinity);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -871,6 +913,10 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
           _buildSummaryRow('Total Items', '$itemCount', false),
           const SizedBox(height: 8),
           _buildSummaryRow('Subtotal', '₹${subtotal.toStringAsFixed(2)}', false),
+          if (discount > 0) ...[
+            const SizedBox(height: 8),
+            _buildSummaryRow('Discount', '-₹${discount.toStringAsFixed(2)}', false),
+          ],
           if (exchangeCredit > 0) ...[
             const SizedBox(height: 8),
             _buildSummaryRow('Exchange Credit', '-₹${exchangeCredit.toStringAsFixed(2)}', false),
@@ -979,7 +1025,8 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
         ];
       }
 
-      double finalTotal = finalItems.fold(0.0, (sum, item) => sum + (item.price * item.quantity));
+      double discountAmount = double.tryParse(_discountAmountController.text) ?? 0.0;
+      double finalTotal = (finalItems.fold(0.0, (sum, item) => sum + (item.price * item.quantity)) - discountAmount).clamp(0.0, double.infinity);
       double cgstAmount = 0.0;
       double sgstAmount = 0.0;
       double taxableAmount = finalTotal;
@@ -1034,17 +1081,36 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
         taxableAmount: taxableAmount,
         cgstAmount: cgstAmount,
         sgstAmount: sgstAmount,
-        paymentMode: netDue > 0 ? _paymentMode : 'Exchange',
+        paymentMode: netDue > 0 ? _paymentMode : 'Discount/Exchange',
         cashAmount: cashAmt,
         onlineAmount: onlineAmt,
         exchangeAmount: exchangeAmount,
         returnedReplacementId: widget.returnedReplacementId,
+        discountAmount: discountAmount,
       );
 
       // Play success sound immediately
       SoundHelper.playSuccess();
 
       // Save sale to database in background
+      if (widget.employeeName != 'Owner' && discountAmount > 0) {
+        final pendingSale = PendingSaleModel(
+          id: sale.id,
+          sale: sale,
+          timestamp: DateTime.now(),
+        );
+        DatabaseService().addPendingSale(pendingSale).catchError((e) {
+          debugPrint('Error in addPendingSale background task: $e');
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Discount requested! Sent for Owner Approval.'), backgroundColor: Colors.orange)
+          );
+          Navigator.pop(context);
+        }
+        return; // exit early
+      }
+
       DatabaseService().addSale(sale).catchError((e) {
         debugPrint('Error in addSale background task: $e');
       });

@@ -263,6 +263,12 @@ class PdfInvoiceHelper {
                     ),
                     child: pw.Column(
                       children: [
+                        if (sale.discountAmount > 0) ...[
+                          _buildSummaryRow('Gross Taxable Value:', 'Rs.${sale.items.fold<double>(0.0, (s, i) => s + (i.price * i.quantity) / (sale.isGstBill ? (1 + (gstSettings.cgstRate + gstSettings.sgstRate)/100) : 1)).toStringAsFixed(2)}', fontR, darkColor),
+                          pw.SizedBox(height: 4),
+                          _buildSummaryRow('Discount (Pre-Tax):', '-Rs.${(sale.isGstBill ? sale.discountAmount / (1 + (gstSettings.cgstRate + gstSettings.sgstRate)/100) : sale.discountAmount).toStringAsFixed(2)}', fontR, secondaryColor),
+                          pw.SizedBox(height: 4),
+                        ],
                         _buildSummaryRow('Subtotal (Taxable Value):', 'Rs.${sale.taxableAmount.toStringAsFixed(2)}', fontR, darkColor),
                         if (sale.isGstBill) ...[
                           pw.SizedBox(height: 4),

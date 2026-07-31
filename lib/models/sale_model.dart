@@ -77,6 +77,7 @@ class SaleModel {
   final double onlineAmount;
   final double exchangeAmount;
   final String? returnedReplacementId;
+  final double discountAmount;
 
   SaleModel({
     required this.id,
@@ -97,6 +98,7 @@ class SaleModel {
     this.onlineAmount = 0.0,
     this.exchangeAmount = 0.0,
     this.returnedReplacementId,
+    this.discountAmount = 0.0,
   });
 
   SaleModel copyWith({
@@ -118,6 +120,7 @@ class SaleModel {
     double? onlineAmount,
     double? exchangeAmount,
     String? returnedReplacementId,
+    double? discountAmount,
   }) {
     return SaleModel(
       id: id ?? this.id,
@@ -138,6 +141,7 @@ class SaleModel {
       onlineAmount: onlineAmount ?? this.onlineAmount,
       exchangeAmount: exchangeAmount ?? this.exchangeAmount,
       returnedReplacementId: returnedReplacementId ?? this.returnedReplacementId,
+      discountAmount: discountAmount ?? this.discountAmount,
     );
   }
 
@@ -161,6 +165,7 @@ class SaleModel {
       'onlineAmount': onlineAmount,
       'exchangeAmount': exchangeAmount,
       'returnedReplacementId': returnedReplacementId,
+      'discountAmount': discountAmount,
     };
   }
 
@@ -188,6 +193,7 @@ class SaleModel {
     final double cashAmt = (map['cashAmount'] ?? (mode == 'Cash' ? totalP : 0.0)).toDouble();
     final double onlineAmt = (map['onlineAmount'] ?? (mode == 'Online' ? totalP : 0.0)).toDouble();
     final double exchangeAmt = (map['exchangeAmount'] ?? 0.0).toDouble();
+    final double discountAmt = (map['discountAmount'] ?? 0.0).toDouble();
 
     return SaleModel(
       id: map['id'] ?? '',
@@ -212,6 +218,7 @@ class SaleModel {
       onlineAmount: onlineAmt,
       exchangeAmount: exchangeAmt,
       returnedReplacementId: map['returnedReplacementId'],
+      discountAmount: discountAmt,
     );
   }
 }

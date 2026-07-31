@@ -27,6 +27,7 @@ import 'low_stock_reorder_screen.dart';
 import '../../models/expense_model.dart';
 import '../../models/replacement_model.dart';
 import '../../models/category_model.dart';
+import '../../models/pending_sale_model.dart';
 import '../sales/warranty_search.dart';
 import '../stock_search_screen.dart';
 import 'enquiry_management_screen.dart';
@@ -61,6 +62,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
   final Map<String, List<ProductModel>> _productsByShop = {};
   final Map<String, List<SpecialistFeeRequestModel>> _feeRequestsByShop = {};
   final Map<String, List<ReplacementModel>> _replacementsByShop = {};
+  final Map<String, List<PendingSaleModel>> _pendingSalesByShop = {};
 
   // One subscription per (shopId × dataType), all cancelled in dispose
   final List<StreamSubscription<dynamic>> _subs = [];
@@ -112,6 +114,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
       }));
       _subs.add(DatabaseService().getReplacementRequests(shopId, status: 'pending').listen((data) {
         if (mounted) setState(() => _replacementsByShop[shopId] = data);
+      }));
+      _subs.add(DatabaseService().getPendingSales(shopId).listen((data) {
+        if (mounted) setState(() => _pendingSalesByShop[shopId] = data);
       }));
     }
   }
@@ -197,12 +202,14 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
   Widget _buildTabHeader(String shopId, String name) {
     final feeRequests = _feeRequestsByShop[shopId] ?? [];
     final replacements = _replacementsByShop[shopId] ?? [];
+    final pendingSalesReqs = _pendingSalesByShop[shopId] ?? [];
     final sales       = _salesByShop[shopId] ?? [];
     final products    = _productsByShop[shopId] ?? [];
     final services    = _servicesByShop[shopId] ?? [];
 
     final pendingFeeCount  = feeRequests.length;
     final pendingReplCount = replacements.length;
+    final pendingDiscountCount = pendingSalesReqs.length;
     final pendingSalesCount = sales
         .where((sale) => sale.items.any((item) => item.costPrice <= 0.0))
         .length;
@@ -212,7 +219,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
         .where((s) => s.employeeName != 'Owner' && !s.isExpenseRecorded)
         .length;
 
-    final totalPending = pendingFeeCount + pendingReplCount +
+    final totalPending = pendingFeeCount + pendingReplCount + pendingDiscountCount +
         pendingSalesCount + pendingProductsCount + pendingServicesCount;
 
     return Row(
@@ -442,6 +449,9 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
           const SizedBox(height: 28),
           _buildSectionHeader('Wastage Approvals', Icons.rule_rounded, Colors.deepOrange),
           _buildWastageApprovals(shopId),
+          const SizedBox(height: 28),
+          _buildSectionHeader('Discount Approvals', Icons.discount_outlined, Colors.blueAccent),
+          _buildPendingDiscountApprovals(shopId),
           _buildPendingCostAlerts(shopId),
           const SizedBox(height: 28),
           _buildStockAlerts(shopId),
@@ -570,6 +580,112 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 8),
           Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingDiscountApprovals(String shopId) {
+    final reqs = _pendingSalesByShop[shopId] ?? [];
+    if (reqs.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+        child: const Text('No pending discount requests.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic), textAlign: TextAlign.center),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: reqs.length,
+      itemBuilder: (context, index) {
+        final req = reqs[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.blueAccent.withOpacity(0.3))),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Cust: ${req.sale.customerName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('₹${req.sale.totalPrice.toStringAsFixed(0)} Final', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text('Employee: ${req.sale.employeeId}', style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                Text('Discount Requested: ₹${req.sale.discountAmount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 14, color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _confirmRejectDiscount(req.id),
+                        style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                        child: const Text('REJECT'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _confirmApproveDiscount(req.id, req.sale.discountAmount),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+                        child: const Text('APPROVE'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmApproveDiscount(String reqId, double amount) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Approve Discount?'),
+        content: Text('Approve ₹$amount discount and finalize sale?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await DatabaseService().approvePendingSale(reqId);
+              SoundHelper.playSuccess();
+            },
+            child: const Text('APPROVE'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRejectDiscount(String reqId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Discount?'),
+        content: const Text('The sale will be cancelled and stock will not be deducted.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await DatabaseService().rejectPendingSale(reqId);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('REJECT'),
+          ),
         ],
       ),
     );

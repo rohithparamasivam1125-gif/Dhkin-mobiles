@@ -406,6 +406,7 @@ class _ShopReportView extends StatelessWidget {
     final partsCostTotal = expenses.where((e) => e.category == 'Parts Cost').fold<double>(0, (s, e) => s + e.amount);
     final specialistFeeTotal = expenses.where((e) => e.category == 'Specialist Fee').fold<double>(0, (s, e) => s + e.amount);
     final giftExpensesTotal = generalExpenseList.where((e) => e.category == 'Complementary Gift').fold<double>(0, (s, e) => s + e.amount);
+    final discountTotal = sales.fold<double>(0, (s, e) => s + e.discountAmount);
 
     final grossProfit  = salesTotal - cogs;
     final serviceProfit = serviceTotal - serviceExpenses;
@@ -542,7 +543,7 @@ class _ShopReportView extends StatelessWidget {
             statBox('TOTAL EXPENSES', 'Rs.${expenses.length > 0 ? expenses.fold<double>(0, (s, e) => s + e.amount).toStringAsFixed(0) : '0'}', _kRed,
                 sub: '${allExpensesList.length} expenses + ${wastageList.length} wastage'),
             statBox('SALES COUNT', '${sales.length}', _kBlue,
-                sub: 'Services: ${services.length}'),
+                sub: discountTotal > 0 ? 'Discounts: Rs.${discountTotal.toStringAsFixed(0)}' : 'Services: ${services.length}'),
           ]),
           pw.SizedBox(height: 10),
           pw.Row(children: [
@@ -798,7 +799,14 @@ class _ShopReportView extends StatelessWidget {
                   // Section 1: Sales
                   pw.Text('PRODUCT SALES', style: ts(size: 8, bold: true, color: const PdfColor(0.8, 0.9, 1.0))),
                   pw.SizedBox(height: 4),
-                  _pdfSummaryRow('Sales Revenue',
+                  if (discountTotal > 0) ...[
+                    _pdfSummaryRow('Gross Sales Value',
+                        'Rs.${(salesTotal + discountTotal).toStringAsFixed(2)}', fontR, fontB),
+                    _pdfSummaryRow('Discounts Given',
+                        '- Rs.${discountTotal.toStringAsFixed(2)}', fontR, fontB,
+                        valueColor: _kRed),
+                  ],
+                  _pdfSummaryRow(discountTotal > 0 ? 'Net Sales Revenue' : 'Sales Revenue',
                       'Rs.${salesTotal.toStringAsFixed(2)}', fontR, fontB),
                   if (cogs > 0)
                     _pdfSummaryRow('Cost of Goods Sold (COGS)',
@@ -972,6 +980,7 @@ class _ShopReportView extends StatelessWidget {
                     final cogs          = sales.fold<double>(0, (sum, s) =>
                         sum + s.items.fold<double>(0, (iSum, item) => iSum + (item.costPrice * item.quantity)));
                     final revenue       = salesTotal + serviceTotal;
+                    final discountTotal = sales.fold<double>(0, (sum, s) => sum + s.discountAmount);
                     // True net profit: gross profit on products + service income - operational expenses - service expenses
                     final grossProfit   = salesTotal - cogs; // profit from product sales after cost
                     final netProfit     = grossProfit + serviceTotal - expTotal - serviceExpenses;
@@ -1037,6 +1046,7 @@ class _ShopReportView extends StatelessWidget {
                           serviceCount: services.length,
                           periodLabel: periodLabel,
                           filterName: filterName,
+                          discountTotal: discountTotal,
                           cashCollected: cashCollected,
                           onlineCollected: onlineCollected,
                           openingDrawerAmount: openingDrawerAmount,
@@ -1095,7 +1105,7 @@ class _ShopReportView extends StatelessWidget {
 // ─────────────────────────── Performance Card ─────────────────────────────────
 
 class _PerformanceCard extends StatelessWidget {
-  final double revenue, netProfit, grossProfit, cogs, expenses, giftExpenses, gstCollected, serviceExpenses, cashCollected, onlineCollected, openingDrawerAmount, cashSpentOnExpenses, onlineSpentOnExpenses;
+  final double revenue, netProfit, grossProfit, cogs, expenses, giftExpenses, gstCollected, serviceExpenses, cashCollected, onlineCollected, openingDrawerAmount, cashSpentOnExpenses, onlineSpentOnExpenses, discountTotal;
   final int salesCount, serviceCount;
   final String periodLabel, filterName;
   final VoidCallback onPrint, onShare;
@@ -1113,6 +1123,7 @@ class _PerformanceCard extends StatelessWidget {
     required this.serviceCount,
     required this.periodLabel,
     required this.filterName,
+    required this.discountTotal,
     required this.onPrint,
     required this.onShare,
     required this.cashCollected,
@@ -1235,7 +1246,11 @@ class _PerformanceCard extends StatelessWidget {
               style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.1),
             ),
             const SizedBox(height: 6),
-            _buildDetailRow('Sales Revenue', '₹${salesRevenue.toStringAsFixed(0)}', const Color(0xFF81D4FA)),
+            if (discountTotal > 0) ...[
+              _buildDetailRow('Gross Sales Value', '₹${(salesRevenue + discountTotal).toStringAsFixed(0)}', const Color(0xFFB3E5FC)),
+              _buildDetailRow('Discounts Given', '- ₹${discountTotal.toStringAsFixed(0)}', const Color(0xFFEF9A9A)),
+            ],
+            _buildDetailRow(discountTotal > 0 ? 'Net Sales Revenue' : 'Sales Revenue', '₹${salesRevenue.toStringAsFixed(0)}', const Color(0xFF81D4FA), isBold: discountTotal > 0),
             _buildDetailRow('Product Cost (COGS)', '- ₹${cogs.toStringAsFixed(0)}', const Color(0xFFEF9A9A)),
             _buildDetailRow('Sales Net Profit', salesProfit >= 0 ? '+₹${salesProfit.toStringAsFixed(0)}' : '-₹${salesProfit.abs().toStringAsFixed(0)}', 
                 salesProfit >= 0 ? const Color(0xFFA5D6A7) : const Color(0xFFEF9A9A), isBold: true),
