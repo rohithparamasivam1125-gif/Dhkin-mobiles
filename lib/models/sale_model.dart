@@ -7,6 +7,9 @@ class CartItem {
   final int quantity;
   final double price;     // Selling price per unit at time of sale
   final double costPrice; // Purchase/cost price per unit at time of sale
+  final bool hasWarranty;
+  final int warrantyPeriod;
+  final String warrantyType;
 
   CartItem({
     required this.productId,
@@ -15,6 +18,9 @@ class CartItem {
     required this.quantity,
     required this.price,
     this.costPrice = 0.0,
+    this.hasWarranty = false,
+    this.warrantyPeriod = 0,
+    this.warrantyType = 'Months',
   });
 
   CartItem copyWith({
@@ -24,6 +30,9 @@ class CartItem {
     int? quantity,
     double? price,
     double? costPrice,
+    bool? hasWarranty,
+    int? warrantyPeriod,
+    String? warrantyType,
   }) {
     return CartItem(
       productId: productId ?? this.productId,
@@ -32,6 +41,9 @@ class CartItem {
       quantity: quantity ?? this.quantity,
       price: price ?? this.price,
       costPrice: costPrice ?? this.costPrice,
+      hasWarranty: hasWarranty ?? this.hasWarranty,
+      warrantyPeriod: warrantyPeriod ?? this.warrantyPeriod,
+      warrantyType: warrantyType ?? this.warrantyType,
     );
   }
 
@@ -43,6 +55,9 @@ class CartItem {
       'quantity': quantity,
       'price': price,
       'costPrice': costPrice,
+      'hasWarranty': hasWarranty,
+      'warrantyPeriod': warrantyPeriod,
+      'warrantyType': warrantyType,
     };
   }
 
@@ -54,6 +69,9 @@ class CartItem {
       quantity: map['quantity'] ?? 0,
       price: (map['price'] ?? 0.0).toDouble(),
       costPrice: (map['costPrice'] ?? 0.0).toDouble(),
+      hasWarranty: map['hasWarranty'] ?? false,
+      warrantyPeriod: map['warrantyPeriod'] ?? 0,
+      warrantyType: map['warrantyType'] ?? 'Months',
     );
   }
 }

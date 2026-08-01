@@ -37,6 +37,7 @@ import '../../utils/sound_helper.dart';
 import '../../utils/app_update_helper.dart';
 import '../../widgets/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../utils/pdf_invoice_helper.dart';
 import '../../main.dart';
 
 class OwnerHomeScreen extends StatefulWidget {
@@ -1761,12 +1762,42 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
           child: ListTile(
             title: Text(sale.items.length == 1 ? sale.items.first.productName : '${sale.items.length} Items'),
             subtitle: Text(sale.items.length == 1 ? sale.customerName : '${sale.customerName} | $itemNames', maxLines: 1, overflow: TextOverflow.ellipsis),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('₹${sale.totalPrice.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(DateFormat('hh:mm a').format(sale.timestamp), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('₹${sale.totalPrice.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(DateFormat('hh:mm a').format(sale.timestamp), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.share_outlined, color: Colors.blueAccent, size: 20),
+                  tooltip: 'Share Bill',
+                  onPressed: () async {
+                    try {
+                      final settings = await DatabaseService().getGstSettings(shopId);
+                      final safeSettings = settings ?? GstSettingsModel(
+                        shopId: shopId,
+                        shopName: ShopHelper.getDisplayName(shopId),
+                        gstNumber: 'N/A',
+                        address: 'Store Address',
+                        contactNumber: 'Phone',
+                        email: '',
+                        cgstRate: 9.0,
+                        sgstRate: 9.0,
+                      );
+                      await PdfInvoiceHelper.shareInvoicePdf(sale, safeSettings);
+                    } catch (e) {
+                      debugPrint('Error sharing bill: $e');
+                    }
+                  },
+                ),
               ],
             ),
           ),

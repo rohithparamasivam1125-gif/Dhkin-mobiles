@@ -369,10 +369,9 @@ class _GstSettingsScreenState extends State<GstSettingsScreen> with SingleTicker
             const SizedBox(height: 16),
             _buildInputField(
               controller: gstCtrl,
-              label: 'GSTIN (GST Number) *',
+              label: 'GSTIN (GST Number) (Optional)',
               hint: 'e.g. 33AAAAA1111A1Z1',
               icon: Icons.badge_outlined,
-              validator: (val) => val == null || val.trim().isEmpty ? 'GSTIN is required' : null,
             ),
             const SizedBox(height: 16),
             Row(

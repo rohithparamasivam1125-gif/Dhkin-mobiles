@@ -248,15 +248,32 @@ class _StockSearchScreenState extends State<StockSearchScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 
-                                // Category
-                                Text(
-                                  product.category.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.graphiteGray,
-                                    letterSpacing: 0.5,
-                                  ),
+                                // Category and Warranty
+                                Row(
+                                  children: [
+                                    Text(
+                                      product.category.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.graphiteGray,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    if (product.hasWarranty && product.warrantyPeriod > 0) ...[
+                                      const SizedBox(width: 12),
+                                      const Icon(Icons.security_rounded, size: 14, color: AppTheme.accentForest),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Warranty: ${product.warrantyPeriod} ${product.warrantyType}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.accentForest,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 const SizedBox(height: 12),
                                 

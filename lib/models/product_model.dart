@@ -7,6 +7,9 @@ class ProductModel {
   final int units;
   final String shopId;
   final String location;
+  final bool hasWarranty;
+  final int warrantyPeriod;
+  final String warrantyType; // "Days", "Months", "Years"
 
   ProductModel({
     required this.id,
@@ -17,6 +20,9 @@ class ProductModel {
     required this.shopId,
     this.costPrice = 0.0,
     this.location = '',
+    this.hasWarranty = false,
+    this.warrantyPeriod = 0,
+    this.warrantyType = 'Months',
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +35,9 @@ class ProductModel {
       'units': units,
       'shopId': shopId,
       'location': location,
+      'hasWarranty': hasWarranty,
+      'warrantyPeriod': warrantyPeriod,
+      'warrantyType': warrantyType,
     };
   }
 
@@ -42,6 +51,9 @@ class ProductModel {
       units: map['units'] ?? 0,
       shopId: map['shopId'] ?? '1',
       location: map['location'] ?? '',
+      hasWarranty: map['hasWarranty'] ?? false,
+      warrantyPeriod: map['warrantyPeriod'] ?? 0,
+      warrantyType: map['warrantyType'] ?? 'Months',
     );
   }
 
@@ -51,6 +63,9 @@ class ProductModel {
     double? costPrice,
     int? units,
     String? location,
+    bool? hasWarranty,
+    int? warrantyPeriod,
+    String? warrantyType,
   }) {
     return ProductModel(
       id: id,
@@ -61,6 +76,9 @@ class ProductModel {
       units: units ?? this.units,
       shopId: shopId,
       location: location ?? this.location,
+      hasWarranty: hasWarranty ?? this.hasWarranty,
+      warrantyPeriod: warrantyPeriod ?? this.warrantyPeriod,
+      warrantyType: warrantyType ?? this.warrantyType,
     );
   }
 

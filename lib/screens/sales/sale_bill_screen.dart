@@ -169,6 +169,9 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
           quantity: qty,
           price: _selectedProduct!.price,
           costPrice: _selectedProduct!.costPrice,
+          hasWarranty: _selectedProduct!.hasWarranty,
+          warrantyPeriod: _selectedProduct!.warrantyPeriod,
+          warrantyType: _selectedProduct!.warrantyType,
         ));
         
         // Reset product selection for next item
@@ -639,7 +642,10 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                     return Card(
                       child: ListTile(
                         title: Text(item.productName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('Qty: ${item.quantity} x ₹${item.price}'),
+                        subtitle: Text(
+                          'Qty: ${item.quantity} x ₹${item.price}' +
+                          (item.hasWarranty && item.warrantyPeriod > 0 ? '\nWarranty: ${item.warrantyPeriod} ${item.warrantyType}' : ''),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -926,7 +932,7 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
             else
               _buildSummaryRow('Net Payable', '₹${netPayable.toStringAsFixed(2)}', true),
           ] else
-            _buildSummaryRow('Total Payable', '₹${subtotal.toStringAsFixed(2)}', true),
+            _buildSummaryRow('Total Payable', '₹${netPayable.toStringAsFixed(2)}', true),
         ],
       ),
     );
@@ -1021,6 +1027,9 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
             quantity: qty,
             price: _selectedProduct!.price,
             costPrice: _selectedProduct!.costPrice,
+            hasWarranty: _selectedProduct!.hasWarranty,
+            warrantyPeriod: _selectedProduct!.warrantyPeriod,
+            warrantyType: _selectedProduct!.warrantyType,
           )
         ];
       }
@@ -1092,8 +1101,10 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
       // Play success sound immediately
       SoundHelper.playSuccess();
 
+      bool isPending = widget.employeeName != 'Owner' && discountAmount > 0;
+
       // Save sale to database in background
-      if (widget.employeeName != 'Owner' && discountAmount > 0) {
+      if (isPending) {
         final pendingSale = PendingSaleModel(
           id: sale.id,
           sale: sale,
@@ -1106,14 +1117,12 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Discount requested! Sent for Owner Approval.'), backgroundColor: Colors.orange)
           );
-          Navigator.pop(context);
         }
-        return; // exit early
+      } else {
+        DatabaseService().addSale(sale).catchError((e) {
+          debugPrint('Error in addSale background task: $e');
+        });
       }
-
-      DatabaseService().addSale(sale).catchError((e) {
-        debugPrint('Error in addSale background task: $e');
-      });
 
       // If this is an exchange, log the returned item and create a replacement request
       if (widget.returnedReplacementId != null) {
@@ -1173,7 +1182,7 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
       buffer.writeln('🧾 *${ShopHelper.getDisplayName(sale.shopId).toUpperCase()} - SALE INVOICE*');
       buffer.writeln('----------------------------------------');
       buffer.writeln('📍 *Shop:* ${ShopHelper.getDisplayName(sale.shopId)}');
-      if (sale.isGstBill && _gstSettings != null) {
+      if (sale.isGstBill && _gstSettings != null && _gstSettings!.gstNumber.trim().isNotEmpty && _gstSettings!.gstNumber != 'N/A') {
         buffer.writeln('📄 *GSTIN:* ${_gstSettings!.gstNumber}');
       }
       buffer.writeln('👤 *Customer:* ${sale.customerName}');
@@ -1186,7 +1195,26 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
       for (int i = 0; i < finalItems.length; i++) {
         final item = finalItems[i];
         final double itemTotal = item.price * item.quantity;
-        buffer.writeln('${i + 1}. *${item.productName}*');
+        String warrantyText = '';
+        if (item.hasWarranty) {
+          DateTime endDate = sale.timestamp;
+          if (item.warrantyType == 'Days') {
+            endDate = endDate.add(Duration(days: item.warrantyPeriod));
+          } else if (item.warrantyType == 'Months') {
+            int newMonth = endDate.month + item.warrantyPeriod;
+            int newYear = endDate.year + (newMonth - 1) ~/ 12;
+            newMonth = (newMonth - 1) % 12 + 1;
+            int day = endDate.day;
+            final lastDayOfNewMonth = DateTime(newYear, newMonth + 1, 0).day;
+            if (day > lastDayOfNewMonth) day = lastDayOfNewMonth;
+            endDate = DateTime(newYear, newMonth, day);
+          } else if (item.warrantyType == 'Years') {
+            endDate = DateTime(endDate.year + item.warrantyPeriod, endDate.month, endDate.day);
+          }
+          String formattedEndDate = "${endDate.day.toString().padLeft(2, '0')}-${endDate.month.toString().padLeft(2, '0')}-${endDate.year}";
+          warrantyText = ' (Warranty: ${item.warrantyPeriod} ${item.warrantyType}, Ends: $formattedEndDate)';
+        }
+        buffer.writeln('${i + 1}. *${item.productName}*$warrantyText');
         buffer.writeln('   Qty: ${item.quantity} x ₹${item.price.toStringAsFixed(0)} = ₹${itemTotal.toStringAsFixed(0)}');
       }
       

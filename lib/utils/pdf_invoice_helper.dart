@@ -104,16 +104,18 @@ class PdfInvoiceHelper {
                       crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
                         pw.Text('TAX INVOICE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: primaryColor)),
-                        pw.SizedBox(height: 8),
-                        pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: pw.BoxDecoration(
-                            color: lightColor,
-                            border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                        if (gstSettings.gstNumber.trim().isNotEmpty && gstSettings.gstNumber != 'N/A') ...[
+                          pw.SizedBox(height: 8),
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: pw.BoxDecoration(
+                              color: lightColor,
+                              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+                              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                            ),
+                            child: pw.Text('GSTIN: ${gstSettings.gstNumber}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: darkColor)),
                           ),
-                          child: pw.Text('GSTIN: ${gstSettings.gstNumber}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: darkColor)),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -200,9 +202,32 @@ class PdfInvoiceHelper {
                   final double netRate = sale.isGstBill ? (item.price / (1 + taxPercent / 100)) : item.price;
                   final double netTotal = netRate * item.quantity;
                   
+                  String warrantyText = '';
+                  if (item.hasWarranty) {
+                    DateTime endDate = sale.timestamp;
+                    if (item.warrantyType == 'Days') {
+                      endDate = endDate.add(Duration(days: item.warrantyPeriod));
+                    } else if (item.warrantyType == 'Months') {
+                      int newMonth = endDate.month + item.warrantyPeriod;
+                      int newYear = endDate.year + (newMonth - 1) ~/ 12;
+                      newMonth = (newMonth - 1) % 12 + 1;
+                      int day = endDate.day;
+                      // Handle cases like Jan 31 + 1 month = Feb 28/29
+                      final lastDayOfNewMonth = DateTime(newYear, newMonth + 1, 0).day;
+                      if (day > lastDayOfNewMonth) {
+                        day = lastDayOfNewMonth;
+                      }
+                      endDate = DateTime(newYear, newMonth, day);
+                    } else if (item.warrantyType == 'Years') {
+                      endDate = DateTime(endDate.year + item.warrantyPeriod, endDate.month, endDate.day);
+                    }
+                    String formattedEndDate = "${endDate.day.toString().padLeft(2, '0')}-${endDate.month.toString().padLeft(2, '0')}-${endDate.year}";
+                    warrantyText = ' - Warranty: ${item.warrantyPeriod} ${item.warrantyType} (Ends: $formattedEndDate)';
+                  }
+
                   return [
                     '${index + 1}',
-                    item.productName,
+                    '${item.productName}$warrantyText',
                     'Rs.${netRate.toStringAsFixed(2)}',
                     '${item.quantity}',
                     'Rs.${netTotal.toStringAsFixed(2)}',
@@ -309,7 +334,7 @@ class PdfInvoiceHelper {
               pw.Center(
                 child: pw.Column(
                   children: [
-                    pw.Text('Thank you for shopping with us! 🙏', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                    pw.Text('Thank you for shopping with us!', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                     pw.SizedBox(height: 3),
                     pw.Text('This is a computer-generated invoice and requires no signature.', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey500)),
                   ],
@@ -461,7 +486,7 @@ class PdfInvoiceHelper {
                       children: [
                         pw.Text('SERVICE INVOICE', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                         pw.SizedBox(height: 8),
-                        if (service.isGstBill)
+                        if (service.isGstBill && gstSettings.gstNumber.trim().isNotEmpty && gstSettings.gstNumber != 'N/A')
                           pw.Container(
                             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: pw.BoxDecoration(
@@ -701,7 +726,7 @@ class PdfInvoiceHelper {
               pw.Center(
                 child: pw.Column(
                   children: [
-                    pw.Text('Thank you for choosing ${gstSettings.shopName}! 🙏', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                    pw.Text('Thank you for choosing ${gstSettings.shopName}!', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                     pw.SizedBox(height: 3),
                     pw.Text('This is a computer-generated invoice and requires no signature.', style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey500)),
                   ],

@@ -40,7 +40,10 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockSearchScreen(isOwner: true))),
+            onPressed: () {
+              final currentShopId = _tabController.index == 0 ? 'Shop 1' : 'Shop 2';
+              Navigator.push(context, MaterialPageRoute(builder: (_) => StockSearchScreen(isOwner: true, shopId: currentShopId)));
+            },
             tooltip: 'Search Stock',
           ),
           IconButton(
@@ -429,6 +432,10 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
     final locationController = TextEditingController();
     String? selectedCategory;
     String selectedShop = _tabController.index == 0 ? 'Shop 1' : 'Shop 2';
+    
+    bool hasWarranty = false;
+    final warrantyPeriodController = TextEditingController();
+    String warrantyType = 'Months';
 
     showDialog(
       context: context,
@@ -527,6 +534,40 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
                     ),
                   ),
                   const SizedBox(height: 16),
+                  SwitchListTile(
+                    title: const Text('Add Warranty?'),
+                    value: hasWarranty,
+                    onChanged: (val) {
+                      setDialogState(() => hasWarranty = val);
+                    },
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  if (hasWarranty) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextFormField(
+                            controller: warrantyPeriodController,
+                            decoration: const InputDecoration(labelText: 'Period (e.g. 6)'),
+                            keyboardType: TextInputType.number,
+                            validator: (val) => (val == null || int.tryParse(val) == null) ? 'Invalid' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 3,
+                          child: DropdownButtonFormField<String>(
+                            value: warrantyType,
+                            items: ['Days', 'Months', 'Years'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                            onChanged: (val) => setDialogState(() => warrantyType = val!),
+                            decoration: const InputDecoration(labelText: 'Duration Type'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   DropdownButtonFormField<String>(
                     value: selectedShop,
                     items: [
@@ -554,6 +595,9 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
                   units: int.parse(unitsController.text),
                   shopId: selectedShop,
                   location: locationController.text.trim(),
+                  hasWarranty: hasWarranty,
+                  warrantyPeriod: hasWarranty ? (int.tryParse(warrantyPeriodController.text) ?? 0) : 0,
+                  warrantyType: warrantyType,
                 );
                 SoundHelper.playSuccess();
                 DatabaseService().addProduct(product).catchError((e) {
@@ -580,6 +624,10 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
     final addQtyController = TextEditingController();
     final totalUnitsController = TextEditingController(text: product.units.toString());
     final locationController = TextEditingController(text: product.location);
+    
+    bool hasWarranty = product.hasWarranty;
+    final warrantyPeriodController = TextEditingController(text: product.warrantyPeriod > 0 ? product.warrantyPeriod.toString() : '');
+    String warrantyType = product.warrantyType;
 
     showDialog(
       context: context,
@@ -724,6 +772,40 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
                         prefixIcon: Icon(Icons.location_on_outlined),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      title: const Text('Add Warranty?'),
+                      value: hasWarranty,
+                      onChanged: (val) {
+                        setDialogState(() => hasWarranty = val);
+                      },
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    if (hasWarranty) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: TextFormField(
+                              controller: warrantyPeriodController,
+                              decoration: const InputDecoration(labelText: 'Period (e.g. 6)'),
+                              keyboardType: TextInputType.number,
+                              validator: (val) => (val == null || int.tryParse(val) == null) ? 'Invalid' : null,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 3,
+                            child: DropdownButtonFormField<String>(
+                              value: warrantyType,
+                              items: ['Days', 'Months', 'Years'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                              onChanged: (val) => setDialogState(() => warrantyType = val!),
+                              decoration: const InputDecoration(labelText: 'Duration Type'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -762,6 +844,9 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
                             costPrice: double.parse(costPriceController.text),
                             units: int.parse(totalUnitsController.text),
                             location: locationController.text.trim(),
+                            hasWarranty: hasWarranty,
+                            warrantyPeriod: hasWarranty ? (int.tryParse(warrantyPeriodController.text) ?? 0) : 0,
+                            warrantyType: warrantyType,
                           );
                           SoundHelper.playSuccess();
                           DatabaseService().addProduct(updatedProduct).catchError((e) {
