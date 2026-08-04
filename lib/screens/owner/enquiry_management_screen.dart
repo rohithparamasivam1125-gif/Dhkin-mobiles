@@ -405,13 +405,40 @@ class _EnquiryManagementScreenState extends State<EnquiryManagementScreen> {
                       if (dropdownValue != null && !uniqueCategoryNames.contains(dropdownValue)) {
                         dropdownValue = null;
                       }
-                      return DropdownButtonFormField<String>(
-                        value: dropdownValue,
-                        decoration: const InputDecoration(labelText: 'Category *'),
-                        items: uniqueCategoryNames.map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
-                        onChanged: (val) => setDialogState(() => selectedCategory = val),
-                        validator: (val) => val == null ? 'Required' : null,
-                        hint: const Text('Select Category'),
+                      return Autocomplete<String>(
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return uniqueCategoryNames;
+                          }
+                          return uniqueCategoryNames.where((String option) {
+                            return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                          });
+                        },
+                        onSelected: (String selection) {
+                          setDialogState(() => selectedCategory = selection);
+                        },
+                        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                          if (dropdownValue != null && textEditingController.text.isEmpty) {
+                            textEditingController.text = dropdownValue;
+                          }
+                          return TextFormField(
+                            controller: textEditingController,
+                            focusNode: focusNode,
+                            decoration: const InputDecoration(
+                              labelText: 'Category *',
+                              hintText: 'Search category...',
+                              suffixIcon: Icon(Icons.search),
+                            ),
+                            onChanged: (val) {
+                              setDialogState(() => selectedCategory = val.trim());
+                            },
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) return 'Required';
+                              if (!uniqueCategoryNames.contains(val.trim())) return 'Select valid category';
+                              return null;
+                            },
+                          );
+                        },
                       );
                     },
                   ),

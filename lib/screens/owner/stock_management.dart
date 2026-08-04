@@ -396,14 +396,25 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
                           final cat = categories[index];
                           return ListTile(
                             title: Text(cat.name),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 20),
-                              onPressed: () async {
-                                SoundHelper.playSuccess();
-                                DatabaseService().deleteCategory(cat.id).catchError((e) {
-                                  debugPrint('Error deleting category in background: $e');
-                                });
-                              },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.blue),
+                                  onPressed: () {
+                                    _showEditCategoryDialog(context, cat);
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                                  onPressed: () async {
+                                    SoundHelper.playSuccess();
+                                    DatabaseService().deleteCategory(cat.id).catchError((e) {
+                                      debugPrint('Error deleting category in background: $e');
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
                           );
                         },
@@ -418,6 +429,49 @@ class _StockManagementScreenState extends State<StockManagementScreen> with Sing
     ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  void _showEditCategoryDialog(BuildContext context, CategoryModel category) {
+    final editController = TextEditingController(text: category.name);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Category'),
+        content: TextField(
+          controller: editController,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(
+            labelText: 'New Category Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accentForest,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final newName = editController.text.trim();
+              if (newName.isNotEmpty && newName.toLowerCase() != category.name.toLowerCase()) {
+                SoundHelper.playSuccess();
+                DatabaseService().updateCategoryName(category.id, category.name, newName).catchError((e) {
+                  debugPrint('Error updating category name: $e');
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Category updated to $newName')),
+                );
+              } else {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
+          ),
         ],
       ),
     );

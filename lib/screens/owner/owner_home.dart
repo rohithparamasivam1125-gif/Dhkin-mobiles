@@ -38,6 +38,7 @@ import '../../utils/app_update_helper.dart';
 import '../../widgets/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../utils/pdf_invoice_helper.dart';
+import '../../utils/pdf_inventory_report_helper.dart';
 import '../../main.dart';
 
 class OwnerHomeScreen extends StatefulWidget {
@@ -378,6 +379,11 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
                   _buildDrawerTile(Icons.account_balance_wallet_outlined, 'Expense Tracker', Colors.red, () {
                     _showShopSelectionDialog(context, (shopId) {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => ExpenseManagementScreen(shopId: shopId)));
+                    });
+                  }),
+                  _buildDrawerTile(Icons.picture_as_pdf_outlined, 'Generate DB Report', Colors.purpleAccent, () {
+                    _showShopSelectionDialog(context, (shopId) {
+                      PdfInventoryReportHelper.generateAndShareInventoryReport(shopId, context);
                     });
                   }),
                 ],

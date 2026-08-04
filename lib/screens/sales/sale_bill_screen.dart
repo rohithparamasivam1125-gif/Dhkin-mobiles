@@ -68,6 +68,7 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
   
   final List<CartItem> _cart = [];
   bool _isLoading = false;
+  FocusNode? _categoryFocusNode;
   bool _isGstBill = false;
   GstSettingsModel? _gstSettings;
   Stream<List<CategoryModel>>? _categoriesStream;
@@ -187,8 +188,8 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
 
   double get _totalCartPrice => _cart.fold(0.0, (sum, item) => sum + (item.price * item.quantity));
 
-  void _showProductSearchSheet(BuildContext context, List<ProductModel> products) {
-    showModalBottomSheet(
+  Future<void> _showProductSearchSheet(BuildContext context, List<ProductModel> products) {
+    return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -522,12 +523,14 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                             });
                           },
                           onSelected: (String selection) {
+                            FocusScope.of(context).unfocus();
                             setState(() {
                               _selectedCategory = selection;
                               _selectedProduct = null;
                             });
                           },
                           fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                            _categoryFocusNode = focusNode;
                             if (dropdownValue != null && textEditingController.text.isEmpty) {
                               textEditingController.text = dropdownValue;
                             }
@@ -541,6 +544,10 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                                 suffixIcon: const Icon(Icons.search),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                               ),
+                              onFieldSubmitted: (val) {
+                                FocusScope.of(context).unfocus();
+                                onFieldSubmitted();
+                              },
                               onChanged: (val) {
                                 setState(() {
                                   _selectedCategory = val.trim();
@@ -571,20 +578,15 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
 
                         return TextFormField(
                           key: ValueKey('prod_field_${_selectedProduct?.id}_$_selectedCategory'),
+                          initialValue: _selectedProduct != null 
+                              ? '${_selectedProduct!.name} (Qty: ${_selectedProduct!.units})' 
+                              : null,
                           decoration: InputDecoration(
                             labelText: _selectedCategory == null ? 'Select Category First' : 'Select Product',
-                            hintText: _selectedProduct != null 
-                                ? '${_selectedProduct!.name} (Qty: ${_selectedProduct!.units})' 
-                                : 'Tap to search product...',
-                            hintStyle: TextStyle(
-                              color: _selectedProduct != null 
-                                  ? AppTheme.charcoalBlack 
-                                  : AppTheme.graphiteGray,
-                              fontWeight: _selectedProduct != null 
-                                  ? FontWeight.w600 
-                                  : FontWeight.normal,
-                              fontSize: 14,
-                            ),
+                            hintText: 'Tap to search product...',
+                            floatingLabelBehavior: _selectedProduct != null 
+                                ? FloatingLabelBehavior.always 
+                                : FloatingLabelBehavior.auto,
                             prefixIcon: const Icon(Icons.shopping_bag_outlined, size: 20),
                             suffixIcon: const Icon(Icons.search_rounded),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -592,11 +594,20 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                           readOnly: true,
                           onTap: _selectedCategory == null 
                             ? null 
-                            : () {
+                            : () async {
+                                FocusScope.of(context).unfocus();
+                                _categoryFocusNode?.unfocus();
+                                _categoryFocusNode?.canRequestFocus = false;
                                 setState(() {
                                   _productSearchQuery = '';
                                 });
-                                _showProductSearchSheet(context, products);
+                                await _showProductSearchSheet(context, products);
+                                if (mounted) {
+                                  _categoryFocusNode?.canRequestFocus = true;
+                                  Future.delayed(Duration.zero, () {
+                                    if (mounted) FocusScope.of(context).unfocus();
+                                  });
+                                }
                               },
                         );
                       },
@@ -917,6 +928,10 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
           ),
           const Divider(height: 24),
           _buildSummaryRow('Total Items', '$itemCount', false),
+          if (_cart.isEmpty && _selectedProduct != null) ...[
+            const SizedBox(height: 8),
+            _buildSummaryRow('Item', _selectedProduct!.name, false),
+          ],
           const SizedBox(height: 8),
           _buildSummaryRow('Subtotal', '₹${subtotal.toStringAsFixed(2)}', false),
           if (discount > 0) ...[

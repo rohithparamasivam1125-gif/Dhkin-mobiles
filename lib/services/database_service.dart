@@ -45,10 +45,13 @@ class DatabaseService {
   // Category Operations
   // Category Operation
   Stream<List<CategoryModel>> getCategories() {
-    return _db.collection('categories').snapshots().map((snapshot) => snapshot
-        .docs
-        .map((doc) => CategoryModel.fromMap(doc.data() as Map<String, dynamic>))
-        .toList());
+    return _db.collection('categories').snapshots().map((snapshot) {
+      final cats = snapshot.docs
+          .map((doc) => CategoryModel.fromMap(doc.data() as Map<String, dynamic>))
+          .toList();
+      cats.sort((a, b) => a.name.trim().toLowerCase().compareTo(b.name.trim().toLowerCase()));
+      return cats;
+    });
   }
 
   Future<void> addCategory(CategoryModel category) async {
@@ -76,6 +79,22 @@ class DatabaseService {
 
   Future<void> deleteCategory(String categoryId) async {
     await _db.collection('categories').doc(categoryId).delete();
+  }
+
+  Future<void> updateCategoryName(String categoryId, String oldName, String newName) async {
+    final batch = _db.batch();
+
+    // 1. Update the category document
+    final catRef = _db.collection('categories').doc(categoryId);
+    batch.update(catRef, {'name': newName});
+
+    // 2. Fetch all products with the old category name and update them
+    final productsQuery = await _db.collection('products').where('category', isEqualTo: oldName).get();
+    for (var doc in productsQuery.docs) {
+      batch.update(doc.reference, {'category': newName});
+    }
+
+    await batch.commit();
   }
 
   Future<void> updateStock(String productId, int newUnits) async {
