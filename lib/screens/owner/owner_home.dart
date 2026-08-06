@@ -15,6 +15,7 @@ import 'employee_management.dart';
 import 'stock_management.dart';
 import 'sales_reports.dart';
 import '../sales/sale_bill_screen.dart';
+import '../../utils/whatsapp_bill_helper.dart';
 import '../services/service_management.dart';
 import '../../services/notification_service.dart';
 import '../login_screen.dart';
@@ -1798,7 +1799,7 @@ class _OwnerHomeScreenState extends State<OwnerHomeScreen> with SingleTickerProv
                         cgstRate: 9.0,
                         sgstRate: 9.0,
                       );
-                      await PdfInvoiceHelper.shareInvoicePdf(sale, safeSettings);
+                      await WhatsAppBillHelper.shareSaleBillWhatsApp(sale, safeSettings, context: context);
                     } catch (e) {
                       debugPrint('Error sharing bill: $e');
                     }

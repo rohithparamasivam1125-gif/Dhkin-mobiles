@@ -25,6 +25,7 @@ import 'package:intl/intl.dart';
 import '../../models/gst_settings_model.dart';
 
 import '../../utils/pdf_invoice_helper.dart';
+import '../../utils/whatsapp_bill_helper.dart';
 
 import '../../utils/shop_helper.dart';
 
@@ -141,7 +142,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
           sgstRate: 9.0,
         );
 
-    PdfInvoiceHelper.shareServiceInvoicePdf(service, settings, textMessage: buffer.toString());
+    WhatsAppBillHelper.shareServiceBillWhatsApp(service, settings, context: context);
   }
 
   Future<void> _loadGstSettings() async {
@@ -292,13 +293,8 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
                       sgstRate: 9.0,
                     );
 
-                if (service.isGstBill) {
-                  await PdfInvoiceHelper.shareServiceInvoicePdf(
-                      service, settings);
-                } else {
                   await PdfInvoiceHelper.generateAndPrintServiceInvoice(
                       service, settings);
-                }
               },
             ),
           ],

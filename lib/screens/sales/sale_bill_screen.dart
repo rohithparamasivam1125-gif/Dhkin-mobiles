@@ -13,6 +13,7 @@ import '../../models/replacement_model.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/shop_helper.dart';
 import '../../utils/pdf_invoice_helper.dart';
+import '../../utils/whatsapp_bill_helper.dart';
 import '../../utils/sound_helper.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/pending_sale_model.dart';
@@ -1293,7 +1294,7 @@ class _SaleBillScreenState extends State<SaleBillScreen> {
                       cgstRate: 9.0,
                       sgstRate: 9.0,
                     );
-                    await PdfInvoiceHelper.shareInvoicePdf(sale, settings, textMessage: message);
+                    await WhatsAppBillHelper.shareSaleBillWhatsApp(sale, settings, context: context);
                   },
                 ),
                 ElevatedButton.icon(
